@@ -1,0 +1,2 @@
+- Clone the repo, use an extension liveserver on vs code entry point is index.html
+- rn its just a basic setup of the game.
