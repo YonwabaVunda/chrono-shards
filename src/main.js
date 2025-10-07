@@ -1,4 +1,5 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js';
+//THIS IS MAIN.JS
+import * as THREE from "three";
 import { Game } from "./game.js";
 import { UIManager } from "./ui.js";
 
@@ -20,9 +21,15 @@ function init() {
   animate();
 }
 
+let lastTime = performance.now();
+
 function animate() {
   requestAnimationFrame(animate);
-  game.update();
+  const now = performance.now();
+  const delta = (now - lastTime) / 1000;
+  lastTime = now;
+
+  game.update(delta);
   renderer.render(scene, camera);
 }
 init();

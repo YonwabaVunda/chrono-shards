@@ -1,2 +1,12 @@
 - Clone the repo, use an extension liveserver on vs code entry point is index.html
 - rn its just a basic setup of the game.
+- How To Play:
+  - arrow keys for movements optional(WASD alternative movement)
+  - Esc key works as pause and resume.
+
+-  How to setup the Game
+   -  git clone https://github.com/YonwabaVunda/chrono-shards.git
+   -  cd chrono-shards
+   -  npm install --save three
+   -  npm install --save-dev vite
+   -  npx vite or npm run dev (to run the Game)

@@ -1,4 +1,5 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js';
+//THIS IS CONTROLS.JS
+import * as THREE from "three";
 export class Controls {
   constructor(camera, domElement) {
     this.camera = camera;

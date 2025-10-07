@@ -1,3 +1,4 @@
+ <!-- THIS IS INDEX.HTML -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,12 +7,29 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="menu">
+  <!-- Main Menu -->
+  <div id="menu">
     <h1>Chrono Shards</h1>
     <button id="startBtn" class="menu-button">Start Game</button>
     <button id="settingsBtn" class="menu-button">Settings</button>
     <button id="quitBtn" class="menu-button">Quit</button>
   </div>
+
+  <!-- Pause Menu -->
+  <div id="pauseMenu" style="display:none;">
+    <h2>Paused</h2>
+    <button id="resumeBtn" class="menu-button">Resume</button>
+    <button id="pauseSettingsBtn" class="menu-button">Settings</button>
+    <button id="mainMenuBtn" class="menu-button">Main Menu</button>
+  </div>
+
+  <!-- Settings Menu -->
+  <div id="settingsMenu" style="display:none;">
+    <h2>Settings</h2>
+    <!-- Add your settings controls here -->
+    <button id="backBtn" class="menu-button">Back</button>
+  </div>
+
   <canvas id="gameCanvas"></canvas>
 
   <script type="module" src="src/main.js"></script>

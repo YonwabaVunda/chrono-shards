@@ -1,9 +1,9 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js';
-
+import * as THREE from "three";
 
 export class Shard {
-  constructor(scene, position = new THREE.Vector3(0, 1, 0)) {
+  constructor(scene, levelObjects, position = new THREE.Vector3(0, 1, 0)) {
     this.collected = false;
+    this.scene = scene;
 
     const geometry = new THREE.IcosahedronGeometry(0.3, 1);
     const material = new THREE.MeshStandardMaterial({
@@ -17,10 +17,11 @@ export class Shard {
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.position.copy(position);
     scene.add(this.mesh);
+
+    if (levelObjects) levelObjects.push(this.mesh);
   }
 
   update() {
-    // rotate for visual effect
     this.mesh.rotation.y += 0.01;
   }
 
@@ -32,5 +33,11 @@ export class Shard {
       return true;
     }
     return false;
+  }
+
+  dispose() {
+    this.scene.remove(this.mesh);
+    if (this.mesh.geometry) this.mesh.geometry.dispose();
+    if (this.mesh.material) this.mesh.material.dispose();
   }
 }

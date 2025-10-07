@@ -1,46 +1,61 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js';
+import * as THREE from "three";
 import { Player } from "../player.js";
 import { Controls } from "../controls.js";
 import { Shard } from "../shard.js";
 
 export class Level1 {
-  constructor(scene, camera) {
+  constructor(scene, camera, levelObjects) {
     this.scene = scene;
     this.camera = camera;
-    this.player = new Player(scene);
+    this.levelObjects = levelObjects; // array to track all objects
+
+    // Player
+    this.player = Player.instance || new Player(this.scene, this.objects);
+    this.player.reset(new THREE.Vector3(0, 0, 0)); // optional reposition
+
+    // Controls
     this.controls = new Controls(camera, document.getElementById("gameCanvas"));
 
-
-    this.shard = new Shard(scene, new THREE.Vector3(5, 1, 0)); // place somewhere visible
-
-    this.onShardCollected = null; // callback to game.js
+    // Shard
+    this.shard = new Shard(scene, this.levelObjects, new THREE.Vector3(5, 1, 0));
     this.shardCollected = false;
 
-    // floor
-    const floor = new THREE.Mesh(
+    // Floor
+    this.floor = new THREE.Mesh(
       new THREE.PlaneGeometry(20, 20),
       new THREE.MeshStandardMaterial({ color: 0xddddaa })
     );
-    floor.rotation.x = -Math.PI / 2;
-    scene.add(floor);
+    this.floor.rotation.x = -Math.PI / 2;
+    scene.add(this.floor);
+    this.levelObjects.push(this.floor);
 
-    // lighting
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(5, 10, 5);
-    scene.add(light);
+    // Directional light (optional: global lights can be added once in main.js)
+    this.light = new THREE.DirectionalLight(0xffffff, 1);
+    this.light.position.set(5, 10, 5);
+    scene.add(this.light);
+    this.levelObjects.push(this.light);
+
+    // Callback for shard collection
+    this.onShardCollected = null;
   }
 
-  update() {
+  update(delta) {
     this.player.move(this.controls);
-    this.player.update();
+    this.player.update(delta);
     this.shard.update();
-    this.camera.lookAt(this.player.mesh.position);
-    this.controls.updateCamera(this.player.mesh.position);  // Camera orbits player
+    this.controls.updateCamera(this.player.group.position);
 
-
-    if (!this.shardCollected && this.shard.checkCollision(this.player.mesh.position)) {
+    if (!this.shardCollected && this.shard.checkCollision(this.player.group.position)) {
       this.shardCollected = true;
-      if (this.onShardCollected) this.onShardCollected(); // trigger level transition
+      if (this.onShardCollected) this.onShardCollected();
     }
+  }
+
+  dispose() {
+    // Remove all objects in levelObjects
+    this.objects.forEach((obj) => {
+      if (obj !== this.player.group) this.scene.remove(obj);
+    });
+    this.objects = []; // clear array
   }
 }
