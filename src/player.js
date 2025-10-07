@@ -88,33 +88,28 @@ export class Player {
     }
 
     // Movement logic
-    if (isMoving) {
-      this.direction.normalize();
-      // --- inside handleInput ---
-      const targetAngle = Math.atan2(this.direction.x, this.direction.z);
-      const currentRotation = this.group.rotation.y;
-      const newRotation = this.lerpAngle(
-        currentRotation,
-        targetAngle,
-        delta * this.rotationSpeed
-      );
-      this.group.rotation.y = newRotation;
+    // Movement logic in Player.handleInput
+if (isMoving) {
+  this.direction.normalize();
 
+  // Align movement with camera orientation
+  const cameraYaw = input.rotationY;
+  this.direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
 
-      // Movement speed (shift = run)
-      const moveSpeed = input.run
-        ? this.moveSpeed * this.runMultiplier
-        : this.moveSpeed;
+  const targetAngle = Math.atan2(this.direction.x, this.direction.z);
+  const currentRotation = this.group.rotation.y;
+  const newRotation = this.lerpAngle(currentRotation, targetAngle, delta * this.rotationSpeed);
+  this.group.rotation.y = newRotation;
 
-      const forward = new THREE.Vector3(0, 0, -1);
-      forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.group.rotation.y);
-      forward.multiplyScalar(moveSpeed * delta);
-      this.group.position.add(forward);
+  const moveSpeed = input.run ? this.moveSpeed * this.runMultiplier : this.moveSpeed;
+  const moveVector = this.direction.clone().multiplyScalar(moveSpeed * delta);
+  this.group.position.add(moveVector);
 
-      // Choose animation
-      if (input.run && this.actions["Run"]) this.fadeToAction("Run");
-      else if (this.actions["Walk"]) this.fadeToAction("Walk");
-    } else {
+  // Animation
+  if (input.run && this.actions["Run"]) this.fadeToAction("Run");
+  else if (this.actions["Walk"]) this.fadeToAction("Walk");
+}
+    else {
       if (this.isGrounded && this.actions["Idle"]) this.fadeToAction("Idle");
     }
   }
