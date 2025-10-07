@@ -9,6 +9,10 @@ export class Controls {
     this.back = false;
     this.left = false;
     this.right = false;
+       
+    // Add new control states
+    this.shift = false;    // Run
+    this.space = false;    // Jump
 
     // Mouse rotation
     this.isDragging = false;
@@ -34,6 +38,9 @@ export class Controls {
       case "KeyS": this.back = pressed; break;
       case "KeyA": this.left = pressed; break;
       case "KeyD": this.right = pressed; break;
+            // NEW: Running and Jumping
+      case "ShiftLeft": case "ShiftRight": this.shift = pressed; break;
+      case "Space": this.space = pressed; break;
     }
   }
 
