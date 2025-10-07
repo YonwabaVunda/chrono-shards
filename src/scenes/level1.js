@@ -11,7 +11,7 @@ export class Level1 {
 
     // Player
     this.player = Player.instance || new Player(this.scene, this.objects);
-    this.player.reset(new THREE.Vector3(0, 0, 0)); // optional reposition
+    //this.player.reset(new THREE.Vector3(0, 0, 0)); // optional reposition
 
     // Controls
     this.controls = new Controls(camera, document.getElementById("gameCanvas"));
