@@ -112,7 +112,7 @@ export class Game {
     }
 
     // Hook shard collection → load next level
-    this.currentLevel.onShardCollected = () => {
+    this.currentLevel.shardsCollected = () => {
       alert(`Shard collected! Loading level ${levelNum + 1}`);
       this.levelIndex++;
       this.loadLevel(this.levelIndex);

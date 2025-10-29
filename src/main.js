@@ -52,6 +52,7 @@ function animate(currentTime) {
 
   if (player && controls) {
     const input = controls.getInputState();
+    if (input.attack) console.log('DEBUG: attack pressed');
     player.handleInput(input, delta);
     player.update(delta);
     controls.updateCamera(player.group.position);

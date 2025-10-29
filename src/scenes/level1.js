@@ -12,7 +12,16 @@ export class Level1 {
     this.collisionSystem = new CollisionSystem();
 
     // --- Player ---
-    this.player = Player.instance || new Player(this.scene, this.levelObjects);
+    // Ensure the singleton Player has the collisionSystem attached.
+    if (!Player.instance) {
+      this.player = new Player(this.scene, this.levelObjects, this.collisionSystem);
+    } else {
+      if (!Player.instance.collisionSystem) {
+        Player.instance.collisionSystem = this.collisionSystem;
+        console.log('Level1: attached CollisionSystem to existing Player.instance');
+      }
+      this.player = Player.instance;
+    }
     this.controls = new Controls(camera, document.getElementById("gameCanvas"));
 
     // --- Environment Setup ---
@@ -21,9 +30,9 @@ export class Level1 {
 
     // --- Shards ---
     this.shards = [
-      new Shard(scene, this.levelObjects, new THREE.Vector3(8, 2, -5)),
-      new Shard(scene, this.levelObjects, new THREE.Vector3(-6, 2, 8)),
-      new Shard(scene, this.levelObjects, new THREE.Vector3(15, 3, 12)),
+      new Shard(scene, new THREE.Vector3(8, 2, -5)),
+      new Shard(scene, new THREE.Vector3(-6, 2, 8)),
+      new Shard(scene, new THREE.Vector3(15, 3, 12)),
     ];
     this.shardsCollected = 0;
     this.totalShards = this.shards.length;
@@ -204,28 +213,36 @@ export class Level1 {
   // Update Loop
   // ========================
   update(delta) {
-    this.player.handleInput(this.controls, delta);
-    this.player.update(delta);
-    this.controls.updateCamera(this.player.group.position);
+    // guard
+    if (!this.player) return;
 
-    // --- Shard collection logic ---
-    this.shards.forEach((shard, index) => {
+    // update player & controls first (assumes external code does player movement)
+    if (this.player.update) this.player.update(delta);
+    if (this.controls && this.controls.updateCamera) this.controls.updateCamera(this.player.group.position);
+
+    // --- Shards: animate and check collection ---
+    for (const shard of this.shards) {
+      if (!shard) continue;
+      shard.update(delta);
+
+      // Use the shard's own collision check which sets shard.collected and hides the mesh.
       if (!shard.collected && shard.checkCollision(this.player.group.position)) {
-        console.log(`💎 Ancient Shard ${index + 1} collected!`);
-        shard.collected = true;
-        shard.mesh.visible = false;
-        this.shardsCollected++;
+        this.shardsCollected = (this.shardsCollected || 0) + 1;
+        console.log(`Level1: shard collected (${this.shardsCollected}/${this.totalShards})`);
 
-        if (this.shardsCollected === this.totalShards) {
-          console.log("⏳ All ancient shards collected! Opening time portal...");
-          this.createCompletionEffects();
+        // Optional: play a collection effect, then remove or dispose the shard mesh.
+        // Keep shard instance (it already hides itself); dispose if you want to free resources:
+        // shard.dispose();
 
-          setTimeout(() => {
-            if (this.onAllShardsCollected) this.onAllShardsCollected();
-          }, 2000);
+        if (this.shardsCollected >= this.totalShards) {
+          console.log('Level1: all shards collected');
+          if (typeof this.createCompletionEffects === 'function') this.createCompletionEffects();
+          if (typeof this.onAllShardsCollected === 'function') this.onAllShardsCollected();
         }
       }
-    });
+    }
+
+    // (rest of level update logic continues...)
   }
 
   createCompletionEffects() {

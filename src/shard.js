@@ -37,11 +37,28 @@ export class Shard {
   checkCollision(playerPosition) {
     if (!this.mesh || this.collected) return false;
 
-    const distance = this.mesh.position.distanceTo(playerPosition);
+    // Normalize playerPosition to a THREE.Vector3 (accept Vector3, plain object, or array)
+    let playerPosVec;
+    if (playerPosition instanceof THREE.Vector3) {
+      playerPosVec = playerPosition.clone();
+    } else if (Array.isArray(playerPosition) && playerPosition.length >= 3) {
+      playerPosVec = new THREE.Vector3(playerPosition[0], playerPosition[1], playerPosition[2]);
+    } else if (playerPosition && typeof playerPosition.x === 'number') {
+      playerPosVec = new THREE.Vector3(playerPosition.x, playerPosition.y || 0, playerPosition.z || 0);
+    } else {
+      console.warn('Shard.checkCollision: invalid playerPosition', playerPosition);
+      return false;
+    }
 
-    // Debug log when nearby
+    // Use world position for the shard in case it's parented/animated
+    const shardWorldPos = new THREE.Vector3();
+    this.mesh.getWorldPosition(shardWorldPos);
+
+    const distance = shardWorldPos.distanceTo(playerPosVec);
+
+    // Always helpful debug output — will only print when nearby to avoid spam
     if (distance < 5) {
-      console.log(`Distance to shard: ${distance.toFixed(2)} (collision at < ${this.collisionRadius})`);
+      console.log(`Shard.checkCollision: shardPos=${shardWorldPos.toArray()} playerPos=${playerPosVec.toArray()} distance=${distance.toFixed(2)} radius=${this.collisionRadius}`);
     }
 
     if (distance < this.collisionRadius) {
