@@ -1,37 +1,205 @@
- <!-- THIS IS INDEX.HTML -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Chrono Shards</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Origin Story</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-image: url('images.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Dark overlay to make text more readable */
+        body::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 90%;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            margin: 20px;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            color: #fdbb2d;
+        }
+        
+        .story-content {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            text-align: left;
+            padding: 0 10px;
+        }
+        
+        .story-content p {
+            margin-bottom: 15px;
+        }
+        
+        .welcome-btn {
+            background: linear-gradient(to right, #fdbb2d, #b21f1f);
+            border: none;
+            color: white;
+            padding: 15px 40px;
+            font-size: 1.3rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            margin-top: 20px;
+        }
+        
+        .welcome-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(to right, #b21f1f, #fdbb2d);
+        }
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('images.jpeg');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.8s ease;
+        }
+        
+        /* Dark overlay for loading screen */
+        .loading-screen::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: -1;
+        }
+        
+        .loading-text {
+            font-size: 2rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .loader {
+            width: 70px;
+            height: 70px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fdbb2d;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .story-content {
+                font-size: 1rem;
+            }
+            
+            .welcome-btn {
+                padding: 12px 30px;
+                font-size: 1.1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <!-- Main Menu -->
-  <div id="menu">
-    <h1>Chrono Shards</h1>
-    <button id="startBtn" class="menu-button">Start Game</button>
-    <button id="settingsBtn" class="menu-button">Settings</button>
-    <button id="quitBtn" class="menu-button">Quit</button>
-  </div>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-text">Loading The Origin Story...</div>
+        <div class="loader"></div>
+    </div>
 
-  <!-- Pause Menu -->
-  <div id="pauseMenu" style="display:none;">
-    <h2>Paused</h2>
-    <button id="resumeBtn" class="menu-button">Resume</button>
-    <button id="pauseSettingsBtn" class="menu-button">Settings</button>
-    <button id="mainMenuBtn" class="menu-button">Main Menu</button>
-  </div>
+    <!-- Main Content -->
+    <div class="container">
+        <h1>The Origin Story</h1>
+        <div class="story-content">
+            <p>Long ago, the Earth was not a planet,it was a being.A living consciousness called Celestia, who breathed through forests, dreamed through oceans, and sang through the stars. Humanity once lived in harmony with her, drawing life from her pulse.</p>
+            
+            <p>But the world grew hungry. Machines replaced prayers. Greed drowned her song. In one final cry of sorrow, Celestia shattered herself.Splitting her soul into countless Shards of Essence that scattered across the broken remains of the planet. </p>
+            
+            <p>Mountains cracked, seas vanished into the sky, cities hung suspended in air.Each fragment of Earth now floating in the silent void. The survivors called this age The Fracture.</p>
+            
+            <p>Centuries later, stories of the old world have become myths.You awake as a Shardborn,one of the rare few touched by Celestia’s essence. Inside you burns a fragment of her memory, whispering of what once was and what could be again.</p>
+            
+            <p> Your mission is simple but immense:Collect the Shards of Celesia,fragments of life, memory, and emotion.And restore balance to a dying world.Each shard is guarded by what remains of humanity’s sins.Machines gone feral, beasts twisted by corruption, and echoes of people who refused to let go. </p>
+            <p>Now, you must decide:Will you rebuild the old Earth… or forge something new from its remains?</p>
+        </div>
+        <button class="welcome-btn" id="welcomeBtn">Welcome</button>
+    </div>
 
-  <!-- Settings Menu -->
-  <div id="settingsMenu" style="display:none;">
-    <h2>Settings</h2>
-    <!-- Add your settings controls here -->
-    <button id="backBtn" class="menu-button">Back</button>
-  </div>
-
-  <canvas id="gameCanvas"></canvas>
-
-  <script type="module" src="src/main.js"></script>
+    <script>
+        // Simulate loading time
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                document.getElementById('loadingScreen').classList.add('fade-out');
+                
+                // Remove loading screen after fade out completes
+                setTimeout(function() {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                }, 800);
+            }, 2000); // 2 second loading time
+        });
+        
+        // Handle welcome button click
+        document.getElementById('welcomeBtn').addEventListener('click', function() {
+            // Redirect to index.html
+            window.location.href = 'start.html';
+        });
+    </script>
 </body>
 </html>
