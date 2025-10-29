@@ -6,6 +6,14 @@ import { Player } from "./player.js";
 
 let renderer, camera, scene, game, player, controls;
 let previousTime = 0;
+// --- UI ELEMENTS --- //
+const loadingScreen = document.getElementById("loadingScreen");
+const storyScreen = document.getElementById("storyScreen");
+const mainMenu = document.getElementById("menu");
+const continueBtn = document.getElementById("continueBtn");
+const startBtn = document.getElementById("startBtn");
+const gameCanvas = document.getElementById("gameCanvas");
+
 
 function init() {
   // Renderer
@@ -60,4 +68,30 @@ function animate(currentTime) {
   renderer.render(scene, camera);
 }
 
+// --- LOADING & MENU FLOW --- //
+// 🕒 Extended loading screen to 8 seconds
+setTimeout(() => {
+  loadingScreen.style.opacity = "0";
+  setTimeout(() => {
+    loadingScreen.style.display = "none";
+    storyScreen.classList.add("visible");
+  }, 1000);
+}, 8000); // ⏱️ 8 seconds loading time
+
+continueBtn.addEventListener("click", () => {
+  storyScreen.classList.remove("visible");
+  storyScreen.style.display = "none";
+  mainMenu.style.display = "flex";
+});
+
+startBtn.addEventListener("click", () => {
+  mainMenu.style.opacity = "0";
+  setTimeout(() => {
+    mainMenu.style.display = "none";
+    // Show canvas before initializing game
+    gameCanvas.style.display = "block";
+    initGame();
+  }, 500);
+});
 init();
+
