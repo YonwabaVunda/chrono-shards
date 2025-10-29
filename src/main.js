@@ -12,7 +12,9 @@ const storyScreen = document.getElementById("storyScreen");
 const mainMenu = document.getElementById("menu");
 const continueBtn = document.getElementById("continueBtn");
 const startBtn = document.getElementById("startBtn");
+const mainMenuBtn = document.getElementById("mainMenuBtn");
 const gameCanvas = document.getElementById("gameCanvas");
+
 
 
 function init() {
@@ -91,8 +93,15 @@ startBtn.addEventListener("click", () => {
     mainMenu.style.display = "none";
     // Show canvas before initializing game
     gameCanvas.style.display = "block";
-    initGame();
   }, 500);
 });
+
+mainMenuBtn.addEventListener("click", () => {
+  gameCanvas.style.display = "none";
+  mainMenu.style.display = "flex";
+  mainMenu.style.opacity = "1";
+});
+
+
 init();
 
