@@ -21,7 +21,8 @@
         <button class="menu-btn" onclick="startGame(1)">▶ Level 1: TRAINING ZONE</button>
         <button class="menu-btn" onclick="startGame(2)">▶ Level 2: ASTEROID FIELD</button>
         <button class="menu-btn" onclick="startGame(3)">▶ Level 3: NEBULA STORM</button>
-        <div style="color: #0ff; margin-top: 10px; font-size: 15px; max-width: 500px; text-align: center; line-height: 1.8;">
+        <button class="menu-btn" onclick="showCredits()">ℹ CREDITS</button>
+        <div style="color: #0ff; margin-top: 5px; font-size: 15px; max-width: 500px; text-align: center; line-height: 1;">
             <strong style="font-size: 18px;">═══ CONTROLS ═══</strong><br>
             WASD/Arrows = Move | Q/E = Up/Down | SPACE = Boost<br>
             LEFT CLICK = Fire Weapon | V = Change Camera<br>
@@ -72,6 +73,20 @@
         <div style="font-size: 16px; margin-top: 10px; opacity: 0.85;">Press ESC to resume</div>
         <button class="menu-btn" onclick="resumeGame()" style="margin-top: 30px; font-size: 22px;">⏯ RESUME</button>
         <button class="menu-btn" onclick="backToMenu()" style="font-size: 22px;">⌂ MAIN MENU</button>
+    </div>
+
+    <div id="credits" class="hidden">
+        <div class="credits-content">
+            <div class="credits-title">CREDITS</div>
+            <div class="credits-list">
+                <div><strong>Design & Development</strong>: Yonwaba Vunda<br>Yamkela Vutula<br>Yanga Peter<br>Katlego Sefuba<br>Kwezi Leeange Mudacumura </div>
+                <div><strong>Art Direction</strong>: The Developers</div>
+                <div><strong>Audio & SFX</strong>: Procedural/WebAudio</div>
+                <div><strong>Engine/Library</strong>: three.js</div>
+            </div>
+            <div class="credits-note">Special thanks to friends and testers. ✨</div>
+            <button class="menu-btn" onclick="hideCredits()" style="margin-top: 30px; font-size: 22px;">↩ BACK</button>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

@@ -702,6 +702,8 @@ window.startGame = function(level) {
     initAudio();
     document.getElementById('menu').classList.add('hidden');
     document.getElementById('gameOver').style.display = 'none';
+    const creditsEl = document.getElementById('credits');
+    if (creditsEl) creditsEl.classList.add('hidden');
     const pauseEl = document.getElementById('pauseMenu');
     if (pauseEl) pauseEl.classList.add('hidden');
     gameState.playing = true;
@@ -728,6 +730,8 @@ window.backToMenu = function() {
     document.getElementById('gameOver').style.display = 'none';
     const pauseEl = document.getElementById('pauseMenu');
     if (pauseEl) pauseEl.classList.add('hidden');
+    const creditsEl = document.getElementById('credits');
+    if (creditsEl) creditsEl.classList.add('hidden');
     gameState.playing = false;
     gameState.paused = false;
     stopAmbient();
@@ -1234,4 +1238,19 @@ window.resumeGame = function() {
     gameState.paused = false;
     const pauseEl = document.getElementById('pauseMenu');
     if (pauseEl) pauseEl.classList.add('hidden');
+}
+
+// Credits controls
+window.showCredits = function() {
+    const menu = document.getElementById('menu');
+    const credits = document.getElementById('credits');
+    if (menu) menu.classList.add('hidden');
+    if (credits) credits.classList.remove('hidden');
+}
+
+window.hideCredits = function() {
+    const menu = document.getElementById('menu');
+    const credits = document.getElementById('credits');
+    if (credits) credits.classList.add('hidden');
+    if (menu) menu.classList.remove('hidden');
 }
