@@ -32,6 +32,121 @@ let music = {
     ]
 };
 
+// Enhanced Material Manager with better fallbacks
+const materialManager = {
+    createProceduralTexture: function(width, height, color1, color2) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        
+        const gradient = context.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, color1);
+        gradient.addColorStop(1, color2);
+        
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, width, height);
+        
+        for (let i = 0; i < width; i += 2) {
+            for (let j = 0; j < height; j += 2) {
+                if (Math.random() > 0.7) {
+                    context.fillStyle = `rgba(255,255,255,${Math.random() * 0.1})`;
+                    context.fillRect(i, j, 1, 1);
+                }
+            }
+        }
+        
+        return new THREE.CanvasTexture(canvas);
+    },
+    
+    getShipMaterial: function() {
+        return new THREE.MeshPhongMaterial({ 
+            color: 0x4a8fe9,
+            emissive: 0x1a3f7a,
+            emissiveIntensity: 0.4,
+            shininess: 80,
+            specular: 0x444444
+        });
+    },
+    
+    getOrbMaterial: function() {
+        return new THREE.MeshPhongMaterial({ 
+            color: 0xffff00,
+            emissive: 0xffff00,
+            emissiveIntensity: 0.9,
+            transparent: true,
+            opacity: 0.95,
+            shininess: 90,
+            specular: 0xffff88
+        });
+    },
+    
+    getAsteroidMaterial: function() {
+        return new THREE.MeshPhongMaterial({ 
+            color: 0x888888,
+            flatShading: true,
+            shininess: 20,
+            specular: 0x222222
+        });
+    },
+    
+    getEnemyMaterial: function() {
+        return new THREE.MeshPhongMaterial({
+            color: 0xff0000,
+            emissive: 0x660000,
+            emissiveIntensity: 0.8,
+            shininess: 60,
+            specular: 0xff4444
+        });
+    },
+    
+    getPowerupMaterial: function(type) {
+        const colors = { 
+            shield: { main: 0x00ffff, emissive: 0x006666 },
+            speed: { main: 0x00ff00, emissive: 0x006600 }, 
+            weapon: { main: 0xff00ff, emissive: 0x660066 }
+        };
+        const color = colors[type] || colors.shield;
+        
+        return new THREE.MeshPhongMaterial({
+            color: color.main,
+            emissive: color.emissive,
+            emissiveIntensity: 0.9,
+            transparent: true,
+            opacity: 0.85,
+            shininess: 100
+        });
+    },
+    
+    getCheckpointMaterial: function() {
+        return new THREE.MeshPhongMaterial({
+            color: 0x00ff00,
+            emissive: 0x00ff00,
+            emissiveIntensity: 0.8,
+            transparent: true,
+            opacity: 0.7,
+            shininess: 80
+        });
+    },
+    
+    getMissileMaterial: function() {
+        return new THREE.MeshPhongMaterial({
+            color: 0xff3300,
+            emissive: 0xff0000,
+            emissiveIntensity: 0.5,
+            shininess: 90
+        });
+    }
+};
+
+// Model Loaders with enhanced error handling
+let objLoader, gltfLoader;
+let modelsLoaded = {
+    plane: false,
+    enemy: false,
+    missile: false
+};
+
 function initAudio() {
     if (!audioCtx) {
         try {
@@ -60,10 +175,8 @@ function playSound(freq, duration, type = 'sine', volume = 0.08) {
 
 function startAmbient() {
     if (!audioCtx) return;
-    // If already sequencer running, do nothing
     if (music.stepTimer) return;
     try {
-        // Create voices
         music.leadOsc = audioCtx.createOscillator();
         music.leadGain = audioCtx.createGain();
         music.leadOsc.type = 'sine';
@@ -90,23 +203,19 @@ function startAmbient() {
         music.arpOsc.start(now);
         music.bassOsc.start(now);
 
-        // Sequencer
         music.stepIdx = 0;
         const msPerBeat = 60000 / music.bpm;
 
         const scheduleStep = () => {
-            // Lead
             const leadStep = music.leadPattern[music.stepIdx % music.leadPattern.length];
             if (leadStep.f > 0) {
                 music.leadOsc.frequency.setTargetAtTime(leadStep.f, audioCtx.currentTime, 0.01);
-                // ADSR-like envelope
                 music.leadGain.gain.cancelScheduledValues(audioCtx.currentTime);
                 music.leadGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
                 music.leadGain.gain.linearRampToValueAtTime(0.045, audioCtx.currentTime + 0.02);
                 music.leadGain.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + (leadStep.d * msPerBeat) / 1000 - 0.01);
             }
 
-            // Arp
             const arpStep = music.arpPattern[music.stepIdx % music.arpPattern.length];
             if (arpStep.f > 0) {
                 music.arpOsc.frequency.setTargetAtTime(arpStep.f, audioCtx.currentTime, 0.01);
@@ -116,7 +225,6 @@ function startAmbient() {
                 music.arpGain.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + (arpStep.d * msPerBeat) / 1000 - 0.01);
             }
 
-            // Bass every two steps
             const bassStep = music.bassPattern[music.stepIdx % music.bassPattern.length];
             if (bassStep.f > 0) {
                 music.bassOsc.frequency.setTargetAtTime(bassStep.f, audioCtx.currentTime, 0.02);
@@ -128,7 +236,7 @@ function startAmbient() {
 
             const stepDurMs = Math.min(
                 (leadStep.d || 0.5) * msPerBeat,
-                800 // safety cap
+                800
             );
             music.stepIdx++;
             music.stepTimer = setTimeout(scheduleStep, stepDurMs);
@@ -206,6 +314,10 @@ function init() {
     if (initialized) return;
     initialized = true;
     
+    // Initialize loaders
+    objLoader = new THREE.OBJLoader();
+    gltfLoader = new THREE.GLTFLoader();
+    
     scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x000515, 0.0006);
     
@@ -216,6 +328,7 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setClearColor(0x000011);
     document.body.appendChild(renderer.domElement);
     
     const minimapCanvas = document.getElementById('minimap');
@@ -264,7 +377,7 @@ function init() {
     });
     document.addEventListener('mouseup', () => mouse.clicked = false);
     
-    console.log('✓ Game Ready!');
+    console.log('✓ Game Ready with Aircraft Models!');
 }
 
 // Intro sequencing
@@ -301,7 +414,6 @@ function runIntro() {
         appendIntroLine(line, t);
         t += 2000;
     });
-    //setTimeout(() => finishIntro(), t + 400);
 }
 
 window.skipIntro = function() {
@@ -318,21 +430,27 @@ function finishIntro() {
 }
 
 function setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0x505070, 0.7);
+    const ambientLight = new THREE.AmbientLight(0x404070, 0.6);
     scene.add(ambientLight);
     
-    const sunLight = new THREE.DirectionalLight(0xffffee, 1.5);
+    const sunLight = new THREE.DirectionalLight(0xffffee, 1.8);
     sunLight.position.set(60, 70, 60);
     sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
     scene.add(sunLight);
     
-    const light1 = new THREE.PointLight(0x00ffff, 2, 180);
-    light1.position.set(-50, 25, -50);
-    scene.add(light1);
+    const fillLight1 = new THREE.PointLight(0x00aaff, 1.5, 200);
+    fillLight1.position.set(-50, 25, -50);
+    scene.add(fillLight1);
     
-    const light2 = new THREE.PointLight(0xff00ff, 2, 180);
-    light2.position.set(50, 25, 50);
-    scene.add(light2);
+    const fillLight2 = new THREE.PointLight(0xff00aa, 1.5, 200);
+    fillLight2.position.set(50, 25, 50);
+    scene.add(fillLight2);
+    
+    const rimLight = new THREE.DirectionalLight(0x4466ff, 0.8);
+    rimLight.position.set(-30, -20, -30);
+    scene.add(rimLight);
 }
 
 function createStarfield() {
@@ -381,63 +499,153 @@ function createNebula() {
 function createShip() {
     ship = new THREE.Group();
     
-    const bodyGeometry = new THREE.ConeGeometry(1, 3.5, 4);
-    const bodyMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x00ffff, 
-        emissive: 0x004466,
-        shininess: 120
-    });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.rotation.x = Math.PI / 2;
-    body.castShadow = true;
-    ship.add(body);
+    const textureLoader = new THREE.TextureLoader();
     
-    const wingGeometry = new THREE.BoxGeometry(6, 0.35, 1.8);
-    const wingMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x0099ff,
-        emissive: 0x002266
-    });
-    const wings = new THREE.Mesh(wingGeometry, wingMaterial);
-    wings.position.set(0, 0, -0.6);
-    wings.castShadow = true;
-    ship.add(wings);
+    // Try to load plane model with better error handling
+    objLoader.load(
+        'models/plane.obj',
+        function (object) {
+            // Try to load texture
+            textureLoader.load(
+                'textures/plane.png',
+                function(texture) {
+                    const material = new THREE.MeshBasicMaterial({ 
+                        map: texture,
+                        transparent: true
+                    });
+                    
+                    object.traverse(function (child) {
+                        if (child.isMesh) {
+                            child.material = material;
+                        }
+                    });
+                    
+                    // FIXED: Correct rotation for proper forward direction
+                    // Try different rotations if this doesn't work:
+                    // object.rotation.y = Math.PI; // 180° rotation
+                    // object.rotation.y = Math.PI / 2; // 90° rotation  
+                    // object.rotation.y = -Math.PI / 2; // -90° rotation
+                    object.rotation.y = Math.PI; // Start with 180° rotation
+                    object.rotation.x = Math.PI / 12; // Slight upward tilt
+                    object.position.z = -0.5;
+                    object.scale.set(0.1, 0.1, 0.1); // Optimal size
+                    
+                    ship.add(object);
+                    modelsLoaded.plane = true;
+                    console.log('✓ Plane model loaded successfully! (180° rotation - test and adjust if needed)');
+                },
+                function(error) {
+                    console.warn('Plane texture not found, using colored material');
+                    object.traverse(function (child) {
+                        if (child.isMesh) {
+                            child.material = materialManager.getShipMaterial();
+                        }
+                    });
+                    
+                    // FIXED: Same corrected rotation
+                    object.rotation.y = Math.PI; // 180° rotation
+                    object.rotation.x = Math.PI / 12; // Slight upward tilt
+                    object.position.z = -0.5;
+                    object.scale.set(0.1, 0.1, 0.1); // Optimal size
+                    
+                    ship.add(object);
+                    modelsLoaded.plane = true;
+                    console.log('✓ Plane model loaded (fallback material, 180° rotation)');
+                }
+            );
+        },
+        function (xhr) {
+            console.log('Plane loading: ' + (xhr.loaded / xhr.total * 100) + '%');
+        },
+        function (error) {
+            console.warn('Plane model not found, using procedural ship');
+            createProceduralShip();
+        }
+    );
     
-    const cockpitGeometry = new THREE.SphereGeometry(0.55, 12, 12);
-    const cockpitMaterial = new THREE.MeshPhongMaterial({
-        color: 0x00ffff,
-        emissive: 0x00ffff,
-        emissiveIntensity: 0.6,
-        transparent: true,
-        opacity: 0.7
-    });
-    const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
-    cockpit.position.set(0, 0.5, 0.7);
-    ship.add(cockpit);
-    
+    // Add engine effects
     const engineLight = new THREE.PointLight(0x00ffff, 3, 15);
     engineLight.position.set(0, 0, -2);
     ship.add(engineLight);
     
-    [-2.2, 2.2].forEach(x => {
-        const engineGeometry = new THREE.CylinderGeometry(0.35, 0.45, 1, 8);
-        const engineMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x00ffff,
-            transparent: true,
-            opacity: 0.95
-        });
-        const engine = new THREE.Mesh(engineGeometry, engineMaterial);
-        engine.position.set(x, 0, -1.4);
-        engine.rotation.x = Math.PI / 2;
-        ship.add(engine);
+    // ADD ENGINE GLOW EFFECTS
+    const engineGlowMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00aaff,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending
     });
+    
+    [-2.2, 2.2].forEach(x => {
+        // Engine glow geometry
+        const glowGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+        const engineGlow = new THREE.Mesh(glowGeometry, engineGlowMaterial);
+        engineGlow.position.set(x, 0, -1.8);
+        ship.add(engineGlow);
+        
+        // Store reference for dynamic effects
+        engineGlow.userData.baseOpacity = 0.3;
+        ship.userData.engineGlows = ship.userData.engineGlows || [];
+        ship.userData.engineGlows.push(engineGlow);
+    });
+
     
     ship.position.set(0, 0, 0);
     ship.userData.targetRotation = { x: 0, y: 0, z: 0 };
     scene.add(ship);
 }
 
+function createProceduralShip() {
+    console.log('Creating procedural ship as fallback');
+    
+    const bodyGeometry = new THREE.ConeGeometry(1, 3.5, 8);
+    const bodyMaterial = materialManager.getShipMaterial();
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.rotation.x = Math.PI / 2;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    ship.add(body);
+    
+    const wingGeometry = new THREE.BoxGeometry(6, 0.35, 1.8);
+    const wingMaterial = materialManager.getShipMaterial();
+    const wings = new THREE.Mesh(wingGeometry, wingMaterial);
+    wings.position.set(0, 0, -0.6);
+    wings.castShadow = true;
+    wings.receiveShadow = true;
+    ship.add(wings);
+    
+    const cockpitGeometry = new THREE.SphereGeometry(0.55, 16, 16);
+    const cockpitMaterial = new THREE.MeshPhongMaterial({
+        color: 0x88ffff,
+        emissive: 0x00ffff,
+        emissiveIntensity: 0.8,
+        transparent: true,
+        opacity: 0.3,
+        shininess: 100,
+        specular: 0xffffff
+    });
+    const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+    cockpit.position.set(0, 0.5, 0.7);
+    cockpit.castShadow = true;
+    ship.add(cockpit);
+    
+    [-2.2, 2.2].forEach(x => {
+        const engineGeometry = new THREE.CylinderGeometry(0.35, 0.45, 1, 12);
+        const engineMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+        const engine = new THREE.Mesh(engineGeometry, engineMaterial);
+        engine.position.set(x, 0, -1.4);
+        engine.rotation.x = Math.PI / 2;
+        ship.add(engine);
+    });
+}
+
 function createParticle(pos, color, size = 0.5, velocity = null) {
-    const geometry = new THREE.SphereGeometry(size, 6, 6);
+    const geometry = new THREE.SphereGeometry(size, 8, 8);
     const material = new THREE.MeshBasicMaterial({ 
         color: color,
         transparent: true,
@@ -455,6 +663,308 @@ function createParticle(pos, color, size = 0.5, velocity = null) {
     particles.push(particle);
 }
 
+function createFlameParticle(pos, color, size = 0.3, velocity = null) {
+    const geometry = new THREE.SphereGeometry(size, 6, 6);
+    const material = new THREE.MeshBasicMaterial({ 
+        color: color,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
+    });
+    const particle = new THREE.Mesh(geometry, material);
+    particle.position.copy(pos);
+    particle.userData.velocity = velocity || new THREE.Vector3(0, 0, 0);
+    particle.userData.life = 1.0;
+    particle.userData.maxLife = 1.0;
+    scene.add(particle);
+    particles.push(particle);
+    return particle;
+}
+
+function createMovementFlames() {
+    if (!ship || !gameState.playing) return;
+    
+    const enginePositions = [
+        new THREE.Vector3(-2.2, 0, -2),  // Left engine
+        new THREE.Vector3(2.2, 0, -2)    // Right engine
+    ];
+    
+    // Get movement direction vectors relative to ship
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(ship.quaternion);
+    const up = new THREE.Vector3(0, 1, 0);
+    
+    let isMoving = false;
+    let movementType = 'idle';
+    
+    // Check movement states
+    if (keys[' '] && gameState.energy > 0) {
+        // BOOSTING - Main engine flames
+        movementType = 'boost';
+        isMoving = true;
+        createBoostFlames(enginePositions, forward);
+    } 
+    else if (keys['w'] || keys['arrowup']) {
+        // FORWARD MOVEMENT - Gentle engine flames
+        movementType = 'forward';
+        isMoving = true;
+        createForwardFlames(enginePositions, forward);
+    }
+    else if (keys['s'] || keys['arrowdown']) {
+        // REVERSE MOVEMENT - Front braking flames
+        movementType = 'reverse';
+        isMoving = true;
+        createReverseFlames(forward);
+    }
+    
+    // TURNING FLAMES - RCS thrusters
+    if (Math.abs(mouse.x) > 0.1 || Math.abs(mouse.y) > 0.1) {
+        createTurningFlames(mouse.x, mouse.y, right, up);
+    }
+    
+    // SIDE MOVEMENT FLAMES
+    if (keys['a'] || keys['arrowleft']) {
+        // LEFT STRAFING - Right side thrusters
+        createStrafeFlames('left', right);
+    }
+    else if (keys['d'] || keys['arrowright']) {
+        // RIGHT STRAFING - Left side thrusters  
+        createStrafeFlames('right', right);
+    }
+    
+    // VERTICAL MOVEMENT FLAMES
+    if (keys['q']) {
+        // UP MOVEMENT - Bottom thrusters
+        createVerticalFlames('up', up);
+    }
+    else if (keys['e']) {
+        // DOWN MOVEMENT - Top thrusters
+        createVerticalFlames('down', up);
+    }
+    
+    // IDLE ENGINE GLOW (when not moving)
+    if (!isMoving) {
+        createIdleGlow(enginePositions);
+    }
+}
+
+function createBoostFlames(enginePositions, forward) {
+    const boostIntensity = Math.min(1.0, gameState.boost / 2.5);
+    
+    enginePositions.forEach(engineOffset => {
+        const worldPos = engineOffset.clone().applyMatrix4(ship.matrixWorld);
+        
+        // Main boost flames
+        for (let i = 0; i < 5; i++) {
+            const flameColor = new THREE.Color().setHSL(
+                0.08 + Math.random() * 0.1, // Orange to yellow
+                1.0,
+                0.5 + Math.random() * 0.3
+            );
+            
+            const size = 0.2 + Math.random() * 0.4 * boostIntensity;
+            
+            const spread = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 0.4
+            );
+            
+            const velocity = forward.clone()
+                .multiplyScalar(-1.5 - Math.random() * 1.0 * boostIntensity) // Backward
+                .add(spread);
+            
+            const flame = createFlameParticle(worldPos, flameColor, size, velocity);
+            flame.userData.life = 0.8 + Math.random() * 0.7;
+            flame.userData.maxLife = flame.userData.life;
+        }
+        
+        // Afterburner effect
+        if (Math.random() > 0.7) {
+            const afterburnerColor = new THREE.Color().setHSL(0.02, 1.0, 0.8);
+            createFlameParticle(worldPos, afterburnerColor, 0.7, 
+                forward.clone().multiplyScalar(-2.5));
+        }
+    });
+}
+
+function createForwardFlames(enginePositions, forward) {
+    enginePositions.forEach(engineOffset => {
+        const worldPos = engineOffset.clone().applyMatrix4(ship.matrixWorld);
+        
+        for (let i = 0; i < 2; i++) {
+            const flameColor = new THREE.Color().setHSL(0.12, 1.0, 0.6); // Yellow-orange
+            const size = 0.15 + Math.random() * 0.2;
+            
+            const velocity = forward.clone()
+                .multiplyScalar(-0.8 - Math.random() * 0.4) // Gentle backward
+                .add(new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.1
+                ));
+            
+            const flame = createFlameParticle(worldPos, flameColor, size, velocity);
+            flame.userData.life = 0.4 + Math.random() * 0.3;
+            flame.userData.maxLife = flame.userData.life;
+        }
+    });
+}
+
+function createReverseFlames(forward) {
+    // Front-facing thrusters for reverse/braking
+    const frontThrusterPositions = [
+        new THREE.Vector3(-1.5, 0, 1),  // Left front
+        new THREE.Vector3(1.5, 0, 1),   // Right front
+        new THREE.Vector3(0, 0.5, 1),   // Top front
+        new THREE.Vector3(0, -0.5, 1)   // Bottom front
+    ];
+    
+    frontThrusterPositions.forEach(thrusterOffset => {
+        const worldPos = thrusterOffset.clone().applyMatrix4(ship.matrixWorld);
+        
+        for (let i = 0; i < 3; i++) {
+            const flameColor = new THREE.Color().setHSL(0.02, 1.0, 0.7); // Red-orange
+            const size = 0.1 + Math.random() * 0.15;
+            
+            // Flames shoot forward when reversing/braking
+            const velocity = forward.clone()
+                .multiplyScalar(0.6 + Math.random() * 0.3) // Forward direction
+                .add(new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.2
+                ));
+            
+            const flame = createFlameParticle(worldPos, flameColor, size, velocity);
+            flame.userData.life = 0.3 + Math.random() * 0.2;
+            flame.userData.maxLife = flame.userData.life;
+        }
+    });
+}
+
+function createTurningFlames(mouseX, mouseY, right, up) {
+    const turnIntensity = Math.max(Math.abs(mouseX), Math.abs(mouseY));
+    
+    // YAW (left/right turning) - Side thrusters
+    if (Math.abs(mouseX) > 0.1) {
+        const yawThrusterPositions = [
+            new THREE.Vector3(mouseX > 0 ? -3 : 3, 0, -1), // Opposite side for turning
+            new THREE.Vector3(mouseX > 0 ? -2.5 : 2.5, 0.5, 0),
+            new THREE.Vector3(mouseX > 0 ? -2.5 : 2.5, -0.5, 0)
+        ];
+        
+        yawThrusterPositions.forEach(thrusterOffset => {
+            const worldPos = thrusterOffset.clone().applyMatrix4(ship.matrixWorld);
+            
+            for (let i = 0; i < 2; i++) {
+                const flameColor = new THREE.Color().setHSL(0.6, 1.0, 0.7); // Blue
+                const size = 0.08 + Math.random() * 0.1 * turnIntensity;
+                
+                // Thrust opposite to turn direction
+                const thrustDirection = right.clone().multiplyScalar(mouseX > 0 ? 1 : -1);
+                const velocity = thrustDirection
+                    .multiplyScalar(0.4 + Math.random() * 0.3 * turnIntensity);
+                
+                const flame = createFlameParticle(worldPos, flameColor, size, velocity);
+                flame.userData.life = 0.2 + Math.random() * 0.2;
+                flame.userData.maxLife = flame.userData.life;
+            }
+        });
+    }
+    
+    // PITCH (up/down turning) - Vertical thrusters
+    if (Math.abs(mouseY) > 0.1) {
+        const pitchThrusterPositions = [
+            new THREE.Vector3(0, mouseY > 0 ? -1 : 1, -1),
+            new THREE.Vector3(1, mouseY > 0 ? -0.8 : 0.8, 0),
+            new THREE.Vector3(-1, mouseY > 0 ? -0.8 : 0.8, 0)
+        ];
+        
+        pitchThrusterPositions.forEach(thrusterOffset => {
+            const worldPos = thrusterOffset.clone().applyMatrix4(ship.matrixWorld);
+            
+            for (let i = 0; i < 2; i++) {
+                const flameColor = new THREE.Color().setHSL(0.3, 1.0, 0.7); // Green-blue
+                const size = 0.08 + Math.random() * 0.1 * turnIntensity;
+                
+                // Thrust opposite to pitch direction
+                const thrustDirection = up.clone().multiplyScalar(mouseY > 0 ? 1 : -1);
+                const velocity = thrustDirection
+                    .multiplyScalar(0.4 + Math.random() * 0.3 * turnIntensity);
+                
+                const flame = createFlameParticle(worldPos, flameColor, size, velocity);
+                flame.userData.life = 0.2 + Math.random() * 0.2;
+                flame.userData.maxLife = flame.userData.life;
+            }
+        });
+    }
+}
+
+function createStrafeFlames(direction, right) {
+    const strafeThrusterPositions = direction === 'left' 
+        ? [new THREE.Vector3(2.5, 0, 0), new THREE.Vector3(2.5, 0.5, -0.5)]  // Right side for left strafe
+        : [new THREE.Vector3(-2.5, 0, 0), new THREE.Vector3(-2.5, 0.5, -0.5)]; // Left side for right strafe
+    
+    strafeThrusterPositions.forEach(thrusterOffset => {
+        const worldPos = thrusterOffset.clone().applyMatrix4(ship.matrixWorld);
+        
+        for (let i = 0; i < 2; i++) {
+            const flameColor = new THREE.Color().setHSL(0.7, 1.0, 0.7); // Purple
+            const size = 0.1 + Math.random() * 0.1;
+            
+            // Thrust opposite to strafe direction
+            const thrustDirection = right.clone().multiplyScalar(direction === 'left' ? -1 : 1);
+            const velocity = thrustDirection.multiplyScalar(0.5 + Math.random() * 0.2);
+            
+            const flame = createFlameParticle(worldPos, flameColor, size, velocity);
+            flame.userData.life = 0.25 + Math.random() * 0.15;
+            flame.userData.maxLife = flame.userData.life;
+        }
+    });
+}
+
+function createVerticalFlames(direction, up) {
+    const verticalThrusterPositions = direction === 'up'
+        ? [new THREE.Vector3(0, -1, 0), new THREE.Vector3(1, -0.8, 0), new THREE.Vector3(-1, -0.8, 0)]  // Bottom for up
+        : [new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0.8, 0), new THREE.Vector3(-1, 0.8, 0)];    // Top for down
+    
+    verticalThrusterPositions.forEach(thrusterOffset => {
+        const worldPos = thrusterOffset.clone().applyMatrix4(ship.matrixWorld);
+        
+        for (let i = 0; i < 2; i++) {
+            const flameColor = new THREE.Color().setHSL(0.4, 1.0, 0.7); // Cyan
+            const size = 0.1 + Math.random() * 0.1;
+            
+            // Thrust opposite to movement direction
+            const thrustDirection = up.clone().multiplyScalar(direction === 'up' ? 1 : -1);
+            const velocity = thrustDirection.multiplyScalar(0.5 + Math.random() * 0.2);
+            
+            const flame = createFlameParticle(worldPos, flameColor, size, velocity);
+            flame.userData.life = 0.25 + Math.random() * 0.15;
+            flame.userData.maxLife = flame.userData.life;
+        }
+    });
+}
+
+function createIdleGlow(enginePositions) {
+    // Subtle engine glow when idle
+    if (Math.random() > 0.8) {
+        enginePositions.forEach(engineOffset => {
+            const worldPos = engineOffset.clone().applyMatrix4(ship.matrixWorld);
+            const glowColor = new THREE.Color().setHSL(0.14, 0.8, 0.4); // Dim orange
+            const size = 0.05 + Math.random() * 0.05;
+            
+            const velocity = new THREE.Vector3(0, 0, -0.1); // Very slow backward
+            const glow = createFlameParticle(worldPos, glowColor, size, velocity);
+            glow.userData.life = 0.2 + Math.random() * 0.1;
+            glow.userData.maxLife = glow.userData.life;
+        });
+    }
+}
+
+
+
 function createExplosion(pos, color = 0xff6600) {
     for (let i = 0; i < 20; i++) {
         createParticle(pos, color, Math.random() * 0.6 + 0.3);
@@ -468,14 +978,13 @@ function fireProjectile() {
     gameState.weaponCooldown = 0.25;
     
     const projectile = new THREE.Group();
-    const geometry = new THREE.SphereGeometry(0.3, 8, 8);
-    const material = new THREE.MeshBasicMaterial({
-        color: 0xff3300,
-        transparent: true,
-        opacity: 0.9
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    projectile.add(mesh);
+    
+    // Create procedural missile (more reliable)
+    const missileGeometry = new THREE.CylinderGeometry(0.1, 0.05, 0.8, 8);
+    const missileMaterial = materialManager.getMissileMaterial();
+    const missile = new THREE.Mesh(missileGeometry, missileMaterial);
+    missile.rotation.x = Math.PI / 2;
+    projectile.add(missile);
     
     const light = new THREE.PointLight(0xff3300, 2, 10);
     projectile.add(light);
@@ -494,41 +1003,114 @@ function fireProjectile() {
     playSound(350, 0.08, 'square', 0.06);
 }
 
-function createEnemy(pos) {
+function createEnemy(pos, type = 'basic') {
     const enemy = new THREE.Group();
     
-    const bodyGeometry = new THREE.OctahedronGeometry(1.2);
-    const bodyMaterial = new THREE.MeshPhongMaterial({
-        color: 0xff0000,
-        emissive: 0x660000,
-        emissiveIntensity: 0.7
-    });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.castShadow = true;
-    enemy.add(body);
+    let health, speed, scale, color;
     
-    const light = new THREE.PointLight(0xff0000, 2, 25);
-    enemy.add(light);
+    switch(type) {
+        case 'basic':
+            health = 2;
+            speed = 0.12;
+            scale = 0.0018;
+            color = 0xff0000;
+            break;
+        case 'fast':
+            health = 1;
+            speed = 0.18;
+            scale = 0.0015;
+            color = 0xff4444;
+            break;
+        case 'tank':
+            health = 4;
+            speed = 0.08;
+            scale = 0.0025;
+            color = 0x990000;
+            break;
+        default:
+            health = 2;
+            speed = 0.12;
+            scale = 0.0018;
+            color = 0xff0000;
+    }
+    
+    // Load model with type-specific properties
+    gltfLoader.load(
+        'models/enemy.gltf',
+        function (gltf) {
+            const model = gltf.scene;
+            model.rotation.y = -Math.PI / 2;
+            model.rotation.x = Math.PI / 24;
+            model.scale.set(scale, scale, scale);
+            enemy.add(model);
+            addEnemyEffects(enemy, color);
+        },
+        undefined,
+        function (error) {
+            createProceduralEnemy(enemy, color);
+        }
+    );
     
     enemy.position.copy(pos);
-    enemy.userData.health = 2;
-    enemy.userData.speed = 0.12 + Math.random() * 0.08;
+    enemy.userData.health = health;
+    enemy.userData.speed = speed;
+    enemy.userData.type = type;
+    enemy.userData.lastAttackTime = 0;
+    enemy.userData.attackCooldown = type === 'fast' ? 800 : 1000;
     
     scene.add(enemy);
     enemies.push(enemy);
+    return enemy;
+}
+
+function createProceduralEnemy(enemy) {
+    // Fallback procedural enemy (your original code)
+    const enemyGeometry = new THREE.OctahedronGeometry(1.2, 1);
+    const enemyMaterial = materialManager.getEnemyMaterial();
+    const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial);
+    enemyMesh.castShadow = true;
+    enemy.add(enemyMesh);
+    
+    addEnemyEffects(enemy);
+}
+
+function addEnemyEffects(enemy) {
+    // Red pulsating light
+    const light = new THREE.PointLight(0xff0000, 3, 30);
+    light.userData.baseIntensity = 3;
+    enemy.add(light);
+    
+    // Enemy glow effect
+    const glowGeometry = new THREE.SphereGeometry(2, 8, 8);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    enemy.add(glow);
+    enemy.userData.glow = glow;
+    
+    // Target indicator (shows when enemy is targeting player)
+    const targetRingGeometry = new THREE.RingGeometry(2.5, 3, 16);
+    const targetRingMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide
+    });
+    const targetRing = new THREE.Mesh(targetRingGeometry, targetRingMaterial);
+    targetRing.rotation.x = Math.PI / 2;
+    enemy.add(targetRing);
+    enemy.userData.targetRing = targetRing;
 }
 
 function createCheckpoint(pos, index) {
     const checkpoint = new THREE.Group();
     
     const ringGeometry = new THREE.TorusGeometry(4, 0.3, 16, 32);
-    const ringMaterial = new THREE.MeshPhongMaterial({
-        color: 0x00ff00,
-        emissive: 0x00ff00,
-        emissiveIntensity: 0.8,
-        transparent: true,
-        opacity: 0.7
-    });
+    const ringMaterial = materialManager.getCheckpointMaterial();
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
     checkpoint.add(ring);
     
@@ -548,6 +1130,7 @@ function createCheckpoint(pos, index) {
 }
 
 function createLevel(level) {
+    // Clear existing objects
     orbs.forEach(orb => scene.remove(orb));
     obstacles.forEach(obs => scene.remove(obs));
     powerups.forEach(p => scene.remove(p));
@@ -574,15 +1157,10 @@ function createLevel(level) {
     gameState.totalCheckpoints = 3 + level;
     gameState.kills = 0;
     
+    // Create orbs
     for (let i = 0; i < gameState.orbsTotal; i++) {
-        const orbGeometry = new THREE.SphereGeometry(0.9, 16, 16);
-        const orbMaterial = new THREE.MeshPhongMaterial({ 
-            color: 0xffff00,
-            emissive: 0xffff00,
-            emissiveIntensity: 0.8,
-            transparent: true,
-            opacity: 0.95
-        });
+        const orbGeometry = new THREE.SphereGeometry(0.9, 32, 32);
+        const orbMaterial = materialManager.getOrbMaterial();
         const orb = new THREE.Mesh(orbGeometry, orbMaterial);
         
         orb.position.set(
@@ -594,29 +1172,16 @@ function createLevel(level) {
         const orbLight = new THREE.PointLight(0xffff00, 2.5, 28);
         orb.add(orbLight);
         
-        const ringGeometry = new THREE.TorusGeometry(1.3, 0.12, 8, 20);
-        const ringMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xffff00,
-            transparent: true,
-            opacity: 0.6
-        });
-        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        ring.rotation.x = Math.PI / 2;
-        orb.add(ring);
-        orb.userData.ring = ring;
-        
         scene.add(orb);
         orbs.push(orb);
     }
     
+    // Create obstacles
     const obstacleCount = 10 + (level * 8);
     for (let i = 0; i < obstacleCount; i++) {
         const size = 2 + Math.random() * (level * 1.5);
-        const geometry = new THREE.DodecahedronGeometry(size);
-        const material = new THREE.MeshPhongMaterial({ 
-            color: 0x888888,
-            flatShading: true
-        });
+        const geometry = new THREE.DodecahedronGeometry(size, 1);
+        const material = materialManager.getAsteroidMaterial();
         const obstacle = new THREE.Mesh(geometry, material);
         
         obstacle.position.set(
@@ -632,6 +1197,7 @@ function createLevel(level) {
         );
         
         obstacle.castShadow = true;
+        obstacle.receiveShadow = true;
         obstacle.userData.rotationSpeed = {
             x: (Math.random() - 0.5) * 0.02,
             y: (Math.random() - 0.5) * 0.02,
@@ -644,20 +1210,14 @@ function createLevel(level) {
         obstacles.push(obstacle);
     }
     
+    // Create powerups
     const powerupCount = 3 + level;
     for (let i = 0; i < powerupCount; i++) {
         const types = ['shield', 'speed', 'weapon'];
         const type = types[Math.floor(Math.random() * types.length)];
-        const colors = { shield: 0x00ffff, speed: 0x00ff00, weapon: 0xff00ff };
         
-        const geometry = new THREE.OctahedronGeometry(0.7, 0);
-        const material = new THREE.MeshPhongMaterial({
-            color: colors[type],
-            emissive: colors[type],
-            emissiveIntensity: 0.9,
-            transparent: true,
-            opacity: 0.85
-        });
+        const geometry = new THREE.OctahedronGeometry(0.7, 1);
+        const material = materialManager.getPowerupMaterial(type);
         const powerup = new THREE.Mesh(geometry, material);
         powerup.position.set(
             (Math.random() - 0.5) * 150,
@@ -666,22 +1226,34 @@ function createLevel(level) {
         );
         powerup.userData.type = type;
         
-        const light = new THREE.PointLight(colors[type], 2.5, 22);
+        const light = new THREE.PointLight(material.color, 2.5, 22);
         powerup.add(light);
         
         scene.add(powerup);
         powerups.push(powerup);
     }
     
-    const enemyCount = 2 + (level ** level);
+    // Create varied enemies
+    const enemyCount = 2 + (level * 2);
     for (let i = 0; i < enemyCount; i++) {
+        let enemyType = 'basic';
+        
+        // Add enemy variety based on level
+        if (level >= 2 && Math.random() < 0.3) {
+            enemyType = 'fast';
+        }
+        if (level >= 3 && Math.random() < 0.2) {
+            enemyType = 'tank';
+        }
+        
         createEnemy(new THREE.Vector3(
             (Math.random() - 0.5) * 140,
             (Math.random() - 0.5) * 35,
             (Math.random() - 0.5) * 140
-        ));
+        ), enemyType);
     }
     
+    // Create checkpoints
     for (let i = 0; i < gameState.totalCheckpoints; i++) {
         createCheckpoint(new THREE.Vector3(
             (Math.random() - 0.5) * 120,
@@ -691,6 +1263,7 @@ function createLevel(level) {
     }
     
     updateUI();
+    console.log(`Level ${level} loaded with ${modelsLoaded.plane ? 'aircraft models' : 'procedural models'}`);
 }
 
 window.startGame = function(level) {
@@ -740,12 +1313,14 @@ window.backToMenu = function() {
 function updateShip() {
     if (!gameState.playing || gameState.paused || !ship) return;
     
-    const deltaTime = 16 / 1000; // Normalized to 60fps
+    const deltaTime = 16 / 1000;
     const moveSpeed = gameState.speed * gameState.boost * (gameState.powerups.speed ? 1.6 : 1);
     
     if (keys[' '] && gameState.energy > 0) {
         gameState.boost = 2.5;
         gameState.energy -= 0.3;
+
+        createMovementFlames();
         
         if (Math.random() > 0.7) {
             const particlePos = ship.position.clone();
@@ -758,32 +1333,84 @@ function updateShip() {
         gameState.boost = 1;
         gameState.energy = Math.min(100, gameState.energy + 0.15);
     }
+        // Update engine glow intensity during boost
+    if (ship.userData.engineGlows) {
+        const glowIntensity = keys[' '] && gameState.energy > 0 ? 1.5 : 1.0;
+        
+        ship.userData.engineGlows.forEach(glow => {
+            const targetOpacity = glow.userData.baseOpacity * glowIntensity;
+            glow.material.opacity += (targetOpacity - glow.material.opacity) * 0.1;
+            
+            // Pulsing effect during boost
+            if (keys[' '] && gameState.energy > 0) {
+                const pulse = Math.sin(Date.now() * 0.02) * 0.1 + 1.0;
+                glow.scale.set(pulse, pulse, pulse);
+            } else {
+                glow.scale.set(1, 1, 1);
+            }
+        });
+    }
     
-    // Forward/Backward
-    if (keys['w'] || keys['arrowup']) ship.position.z -= moveSpeed;
-    if (keys['s'] || keys['arrowdown']) ship.position.z += moveSpeed;
+    // FIXED: Full 360° rotation with proper direction
+    const maxRotation = Math.PI * 2; // Full 360 degrees in radians
     
-    // Left/Right
-    if (keys['a'] || keys['arrowleft']) ship.position.x -= moveSpeed;
-    if (keys['d'] || keys['arrowright']) ship.position.x += moveSpeed;
+    // Calculate target rotation based on mouse input
+    ship.userData.targetRotation = {
+        y: -mouse.x * maxRotation, // Full horizontal rotation
+        x: mouse.y * (Math.PI / 2), // 90° up/down limit (more natural)
+        z: -mouse.x * (Math.PI / 4) // 45° roll for banking effect
+    };
     
-    // Up/Down - Q to go up, E to go down
-    if (keys['q']) ship.position.y += moveSpeed;
-    if (keys['e']) ship.position.y -= moveSpeed;
+    // Smooth rotation with full range
+    const rotationSpeed = 0.15;
     
-    // Smooth rotation
-    ship.userData.targetRotation.y = -mouse.x * 0.5;
-    ship.userData.targetRotation.x = mouse.y * 0.3;
-    ship.userData.targetRotation.z = -mouse.x * 0.2;
+    // Handle full 360° rotation for Y-axis (wrap around)
+    let targetY = ship.userData.targetRotation.y;
+    let currentY = ship.rotation.y;
     
-    ship.rotation.y += (ship.userData.targetRotation.y - ship.rotation.y) * 0.1;
-    ship.rotation.x += (ship.userData.targetRotation.x - ship.rotation.x) * 0.1;
-    ship.rotation.z += (ship.userData.targetRotation.z - ship.rotation.z) * 0.1;
+    // Normalize angles to handle wrap-around
+    targetY = ((targetY + Math.PI) % (Math.PI * 2)) - Math.PI;
+    currentY = ((currentY + Math.PI) % (Math.PI * 2)) - Math.PI;
     
+    ship.rotation.y = currentY + (targetY - currentY) * rotationSpeed;
+    ship.rotation.x += (ship.userData.targetRotation.x - ship.rotation.x) * rotationSpeed;
+    ship.rotation.z += (ship.userData.targetRotation.z - ship.rotation.z) * rotationSpeed;
+    
+    // FIXED: Movement relative to ship's rotation
+    const forward = new THREE.Vector3(0, 0, -1);
+    forward.applyQuaternion(ship.quaternion);
+    
+    const right = new THREE.Vector3(1, 0, 0);
+    right.applyQuaternion(ship.quaternion);
+    
+    const up = new THREE.Vector3(0, 1, 0);
+    
+    // Movement controls - now relative to ship's orientation
+    if (keys['w'] || keys['arrowup']) {
+        ship.position.add(forward.clone().multiplyScalar(moveSpeed));
+    }
+    if (keys['s'] || keys['arrowdown']) {
+        ship.position.add(forward.clone().multiplyScalar(-moveSpeed));
+    }
+    if (keys['a'] || keys['arrowleft']) {
+        ship.position.add(right.clone().multiplyScalar(-moveSpeed));
+    }
+    if (keys['d'] || keys['arrowright']) {
+        ship.position.add(right.clone().multiplyScalar(moveSpeed));
+    }
+    if (keys['q']) {
+        ship.position.add(up.clone().multiplyScalar(moveSpeed));
+    }
+    if (keys['e']) {
+        ship.position.add(up.clone().multiplyScalar(-moveSpeed));
+    }
+    
+    // Position boundaries
     ship.position.x = Math.max(-100, Math.min(100, ship.position.x));
     ship.position.y = Math.max(-50, Math.min(50, ship.position.y));
     ship.position.z = Math.max(-100, Math.min(100, ship.position.z));
     
+    // Firing
     if (mouse.clicked) {
         fireProjectile();
     }
@@ -863,7 +1490,7 @@ function checkCollisions() {
             playSound(650, 0.35, 'triangle');
             
             for (let j = 0; j < 12; j++) {
-                createParticle(powerup.position, powerup.material.color.getHex(), 0.45);
+                createParticle(powerup.position, powerup.material.color, 0.45);
             }
         }
     }
@@ -955,19 +1582,103 @@ function checkCollisions() {
     
     enemies.forEach(enemy => {
         const dist = ship.position.distanceTo(enemy.position);
-        if (dist < 2) {
-            if (gameState.shield > 0) {
-                gameState.shield = Math.max(0, gameState.shield - 3);
-            } else {
-                gameState.energy = Math.max(0, gameState.energy - 2);
-                gameState.combo = 0;
-            }
-            
-            if (gameState.energy <= 0) {
-                setTimeout(() => endGame(false), 100);
+        const currentTime = Date.now();
+        
+        if (dist < 3) { // Collision distance
+            // Check attack cooldown
+            if (currentTime - enemy.userData.lastAttackTime > enemy.userData.attackCooldown) {
+                
+                // Create attack effect
+                createEnemyAttackEffect(enemy.position, ship.position);
+                
+                if (gameState.shield > 0) {
+                    gameState.shield = Math.max(0, gameState.shield - 5); // More shield damage
+                    playSound(300, 0.2, 'square', 0.1); // Shield hit sound
+                } else {
+                    gameState.energy = Math.max(0, gameState.energy - 3); // More energy drain
+                    gameState.combo = 0;
+                    playSound(200, 0.3, 'sawtooth', 0.15); // Energy drain sound
+                    
+                    // Screen shake effect on energy hit
+                    cameraShake(0.3);
+                }
+                
+                enemy.userData.lastAttackTime = currentTime;
+                
+                if (gameState.energy <= 0) {
+                    setTimeout(() => endGame(false), 100);
+                }
             }
         }
     });
+}
+function createEnemyAttackEffect(fromPos, toPos) {
+    // Create energy beam effect
+    const beamGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1, 8);
+    const beamMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
+    });
+    
+    const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+    
+    // Position beam between enemy and player
+    const direction = new THREE.Vector3().subVectors(toPos, fromPos);
+    const distance = direction.length();
+    const center = new THREE.Vector3().addVectors(fromPos, toPos).multiplyScalar(0.5);
+    
+    beam.position.copy(center);
+    beam.scale.set(1, distance, 1);
+    beam.lookAt(toPos);
+    
+    scene.add(beam);
+    
+    // Animate beam
+    const beamLife = 0.2; // Short duration
+    const startTime = Date.now();
+    
+    function animateBeam() {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const progress = elapsed / beamLife;
+        
+        if (progress < 1) {
+            beam.material.opacity = 0.8 * (1 - progress);
+            beam.scale.x = beam.scale.y = 1 - progress;
+            requestAnimationFrame(animateBeam);
+        } else {
+            scene.remove(beam);
+        }
+    }
+    animateBeam();
+    
+    // Create impact particles at player position
+    for (let i = 0; i < 8; i++) {
+        createParticle(toPos, 0xff0000, 0.2, 
+            new THREE.Vector3(
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 0.5,
+                (Math.random() - 0.5) * 0.5
+            )
+        );
+    }
+}
+
+function cameraShake(intensity = 0.2) {
+    const originalPosition = camera.position.clone();
+    const shakeDuration = 300; // ms
+    
+    function doShake(elapsed) {
+        if (elapsed < shakeDuration) {
+            camera.position.x = originalPosition.x + (Math.random() - 0.5) * intensity;
+            camera.position.y = originalPosition.y + (Math.random() - 0.5) * intensity;
+            requestAnimationFrame(() => doShake(elapsed + 16));
+        } else {
+            camera.position.copy(originalPosition);
+        }
+    }
+    doShake(0);
 }
 
 function activatePowerup(type) {
@@ -1025,6 +1736,17 @@ function showCheckpointMessage() {
     }, 2000);
 }
 
+window.nextLevel = function() {
+    if (gameState.level < 3) { // Assuming there are 3 levels
+        window.startGame(gameState.level + 1);
+    } else {
+        // If it's the last level, show completion message
+        alert("Congratulations! You've completed all levels!");
+        backToMenu();
+    }
+}
+
+// Modify the endGame function to show the Next Level button when the player wins
 function endGame(won) {
     gameState.playing = false;
     gameState.paused = false;
@@ -1032,16 +1754,26 @@ function endGame(won) {
     const gameOverDiv = document.getElementById('gameOver');
     const gameOverText = document.getElementById('gameOverText');
     const gameStats = document.getElementById('gameStats');
+    const nextLevelBtn = document.getElementById('nextLevelBtn');
     
     if (won) {
         gameOverText.innerHTML = `🏆 LEVEL ${gameState.level} COMPLETE! 🏆`;
         playSound(450, 0.6);
         setTimeout(() => playSound(550, 0.6), 250);
         setTimeout(() => playSound(700, 1), 500);
+        
+        // Show Next Level button if not on the last level
+        if (gameState.level < 3) {
+            nextLevelBtn.style.display = 'block';
+        } else {
+            nextLevelBtn.style.display = 'none';
+        }
     } else {
         gameOverText.innerHTML = `💥 MISSION FAILED 💥`;
         createExplosion(ship.position, 0x00ffff);
         playSound(60, 1.2, 'sawtooth', 0.18);
+        // Hide Next Level button on failure
+        nextLevelBtn.style.display = 'none';
     }
     
     gameStats.innerHTML = `
@@ -1056,6 +1788,23 @@ function endGame(won) {
     `;
     
     gameOverDiv.style.display = 'block';
+}
+
+window.backToMenu = function() {
+    document.getElementById('menu').classList.remove('hidden');
+    document.getElementById('gameOver').style.display = 'none';
+    const pauseEl = document.getElementById('pauseMenu');
+    if (pauseEl) pauseEl.classList.add('hidden');
+    const creditsEl = document.getElementById('credits');
+    if (creditsEl) creditsEl.classList.add('hidden');
+    
+    // Hide the Next Level button when returning to menu
+    const nextLevelBtn = document.getElementById('nextLevelBtn');
+    if (nextLevelBtn) nextLevelBtn.style.display = 'none';
+    
+    gameState.playing = false;
+    gameState.paused = false;
+    stopAmbient();
 }
 
 function updateUI() {
@@ -1121,11 +1870,6 @@ function animate() {
     orbs.forEach(orb => {
         orb.rotation.y += 0.035;
         orb.position.y += Math.sin(Date.now() * 0.002 + orb.position.x) * 0.025;
-        if (orb.userData.ring) {
-            orb.userData.ring.rotation.z += 0.025;
-            const scale = 1 + Math.sin(Date.now() * 0.006) * 0.15;
-            orb.userData.ring.scale.set(scale, scale, 1);
-        }
     });
     
     obstacles.forEach(obs => {
@@ -1152,10 +1896,51 @@ function animate() {
         }
     });
     
+    // Enhanced enemy behavior
     enemies.forEach(enemy => {
-        enemy.rotation.y += 0.05;
+        // Smooth rotation
+        enemy.rotation.y += 0.03;
+        
+        // Calculate direction to player
         const direction = ship.position.clone().sub(enemy.position).normalize();
-        enemy.position.add(direction.multiplyScalar(enemy.userData.speed));
+        const distanceToPlayer = ship.position.distanceTo(enemy.position);
+        
+        // Different behaviors based on distance
+        if (distanceToPlayer < 80) {
+            // AGGRESSIVE MODE - Chase player directly
+            const chaseSpeed = enemy.userData.speed * 1.2;
+            enemy.position.add(direction.multiplyScalar(chaseSpeed));
+            
+            // Show target indicator when close
+            if (distanceToPlayer < 20) {
+                enemy.userData.targetRing.material.opacity = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+            } else {
+                enemy.userData.targetRing.material.opacity = 0;
+            }
+        } else {
+            // PATROL MODE - Move randomly until player is detected
+            if (!enemy.userData.patrolDirection || Math.random() < 0.01) {
+                enemy.userData.patrolDirection = new THREE.Vector3(
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2
+                ).normalize();
+            }
+            enemy.position.add(enemy.userData.patrolDirection.multiplyScalar(enemy.userData.speed * 0.5));
+        }
+        
+        // Pulsing glow effect
+        if (enemy.userData.glow) {
+            const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 0.9;
+            enemy.userData.glow.scale.set(pulse, pulse, pulse);
+        }
+        
+        // Pulsing light intensity
+        const light = enemy.children.find(child => child.isPointLight);
+        if (light) {
+            const intensityPulse = Math.sin(Date.now() * 0.008) * 0.5 + 1;
+            light.intensity = light.userData.baseIntensity * intensityPulse;
+        }
     });
     
     for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -1172,9 +1957,33 @@ function animate() {
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.position.add(p.userData.velocity);
-        p.userData.life -= 0.025;
-        p.material.opacity = Math.max(0, p.userData.life);
-        p.scale.multiplyScalar(0.96);
+        
+        // Different behavior for flame particles vs explosion particles
+        if (p.userData.maxLife !== undefined) {
+            // Flame particles - faster fade, grow then shrink
+            p.userData.life -= 0.05;
+            const lifeRatio = p.userData.life / p.userData.maxLife;
+            
+            // Flame particles grow then shrink
+            if (lifeRatio > 0.5) {
+                p.scale.multiplyScalar(1.02); // Grow initially
+            } else {
+                p.scale.multiplyScalar(0.95); // Shrink at end
+            }
+            
+            // Flame color changes (orange to red)
+            if (p.material.color) {
+                const hue = 0.1 * lifeRatio; // From orange to red
+                p.material.color.setHSL(hue, 1.0, 0.4 + 0.3 * lifeRatio);
+            }
+            
+            p.material.opacity = Math.max(0, p.userData.life * 0.8);
+        } else {
+            // Original explosion particles
+            p.userData.life -= 0.025;
+            p.material.opacity = Math.max(0, p.userData.life);
+            p.scale.multiplyScalar(0.96);
+        }
         
         if (p.userData.life <= 0) {
             scene.remove(p);
@@ -1217,7 +2026,6 @@ function onWindowResize() {
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 }
-
 
 // Pause/Resume controls
 window.togglePause = function() {

@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cosmic Collector - Polished Final</title>
+    <title>Cosmic Collector - Aircraft Edition</title>
     <link rel="stylesheet" href="cosmic_collector_game.css">
 </head>
 <body>
     <div id="intro">
         <div class="intro-title">COSMIC COLLECTOR</div>
-        <div class="intro-sub">A spacefaring story</div>
+        <div class="intro-sub">Aircraft Models Edition</div>
         <div id="intro-lines"></div>
         <div class="intro-hint">Press Skip to continue</div>
         <button class="menu-btn intro-skip" onclick="skipIntro()">Skip</button>
@@ -17,7 +17,7 @@
 
     <div id="menu" class="hidden">
         <h6>⚡ COSMIC COLLECTOR ⚡</h6>
-        <div class="subtitle">✨ Master the cosmos, collect the energy ✨</div>
+        <div class="subtitle">✨ Featuring Real Aircraft Models ✨</div>
         <button class="menu-btn" onclick="startGame(1)">▶ Level 1: TRAINING ZONE</button>
         <button class="menu-btn" onclick="startGame(2)">▶ Level 2: ASTEROID FIELD</button>
         <button class="menu-btn" onclick="startGame(3)">▶ Level 3: NEBULA STORM</button>
@@ -28,7 +28,7 @@
             LEFT CLICK = Fire Weapon | V = Change Camera<br>
             ESC = Pause | Sound = m<br>
             <strong style="color: #ff0;">═══ MISSION ═══</strong><br>
-            Collect yellow orbs • Destroy red enemies • Reach green checkpoints!
+            Collect energy orbs • Destroy enemy aircraft • Reach checkpoints!
         </div>
     </div>
     
@@ -66,6 +66,7 @@
         <div style="font-size: 15px; margin-top: 20px; line-height: 1.8;" id="gameStats"></div>
         <button class="menu-btn" onclick="restartGame()" style="margin-top: 35px; font-size: 22px;">↻ RESTART</button>
         <button class="menu-btn" onclick="backToMenu()" style="font-size: 22px;">⌂ MENU</button>
+        <button class="menu-btn" id="nextLevelBtn" onclick="nextLevel()" style="margin-top: 15px; font-size: 22px; display: none;">▶ NEXT LEVEL</button>
     </div>
 
     <div id="pauseMenu" class="hidden">
@@ -80,16 +81,19 @@
             <div class="credits-title">CREDITS</div>
             <div class="credits-list">
                 <div><strong>Design & Development</strong>: Yonwaba Vunda<br>Yamkela Vutula<br>Yanga Peter<br>Katlego Sefuba<br>Kwezi Leeange Mudacumura </div>
-                <div><strong>Art Direction</strong>: The Developers</div>
+                <div><strong>Aircraft Models</strong>: Integrated from Space Shooter Game</div>
                 <div><strong>Audio & SFX</strong>: Procedural/WebAudio</div>
                 <div><strong>Engine/Library</strong>: three.js</div>
             </div>
-            <div class="credits-note">Special thanks to friends and testers. ✨</div>
+            <div class="credits-note">Featuring real aircraft models with enhanced textures. ✨</div>
             <button class="menu-btn" onclick="hideCredits()" style="margin-top: 30px; font-size: 22px;">↩ BACK</button>
         </div>
     </div>
 
+    <!-- Three.js and Loaders -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="cosmic_collector_game.js"></script>
 </body>
 </html>
