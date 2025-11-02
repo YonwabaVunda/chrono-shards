@@ -233,9 +233,22 @@ function initAudio() {
     if (!audioCtx) {
         try {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('Audio context created');
         } catch(e) {
-            console.log('Audio not supported');
+            console.log('Audio not supported:', e);
         }
+    }
+}
+
+// Add this function to handle user interaction
+function handleUserInteraction() {
+    if (!audioCtx) {
+        initAudio();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+            console.log('Audio context resumed');
+        });
     }
 }
 
@@ -430,6 +443,7 @@ function init() {
     window.addEventListener('resize', onWindowResize);
     runIntro();
     document.addEventListener('keydown', (e) => {
+        handleUserInteraction(); // Add user interaction for audio
         keys[e.key.toLowerCase()] = true;
         if (e.key.toLowerCase() === 'v' && gameState.playing) {
             gameState.cameraMode = (gameState.cameraMode + 1) % 3;
@@ -442,7 +456,7 @@ function init() {
             }
         }
         if (e.key.toLowerCase() === 'm') {
-            initAudio();
+            handleUserInteraction(); // Add user interaction for audio
             gameState.musicOn = !gameState.musicOn;
             if (gameState.musicOn && gameState.playing) {
                 startAmbient();
@@ -454,7 +468,7 @@ function init() {
     document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mousedown', () => {
-        initAudio();
+        handleUserInteraction(); // Add user interaction for audio
         mouse.clicked = true;
     });
     document.addEventListener('mouseup', () => mouse.clicked = false);
@@ -472,7 +486,7 @@ function appendIntroLine(text, delayMs) {
         p.className = 'intro-line';
         p.textContent = text;
         container.appendChild(p);
-        initAudio();
+        handleUserInteraction(); // Add user interaction for audio
         playSound(520 + Math.random()*80, 0.12, 'triangle', 0.04);
     }, delayMs);
 }
@@ -602,15 +616,10 @@ function createShip() {
                         }
                     });
                     
-                    // FIXED: Correct rotation for proper forward direction
-                    // Try different rotations if this doesn't work:
-                    // object.rotation.y = Math.PI; // 180° rotation
-                    // object.rotation.y = Math.PI / 2; // 90° rotation  
-                    // object.rotation.y = -Math.PI / 2; // -90° rotation
-                    object.rotation.y = Math.PI; // Start with 180° rotation
-                    object.rotation.x = Math.PI / 12; // Slight upward tilt
+                    object.rotation.y = Math.PI;
+                    object.rotation.x = Math.PI / 12;
                     object.position.z = -0.5;
-                    object.scale.set(0.1, 0.1, 0.1); // Optimal size
+                    object.scale.set(0.1, 0.1, 0.1);
                     
                     ship.add(object);
                     modelsLoaded.plane = true;
@@ -624,11 +633,10 @@ function createShip() {
                         }
                     });
                     
-                    // FIXED: Same corrected rotation
-                    object.rotation.y = Math.PI; // 180° rotation
-                    object.rotation.x = Math.PI / 12; // Slight upward tilt
+                    object.rotation.y = Math.PI;
+                    object.rotation.x = Math.PI / 12;
                     object.position.z = -0.5;
-                    object.scale.set(0.1, 0.1, 0.1); // Optimal size
+                    object.scale.set(0.1, 0.1, 0.1);
                     
                     ship.add(object);
                     modelsLoaded.plane = true;
@@ -1062,7 +1070,7 @@ function fireProjectile() {
     const projectile = new THREE.Group();
     
     // Create procedural missile (more reliable)
-    const missileGeometry = new THREE.CylinderGeometry(0.5, 0.3, 1, 8);
+    const missileGeometry = new THREE.CylinderGeometry(0.1, 0.05, 0.8, 8);
     const missileMaterial = materialManager.getMissileMaterial();
     const missile = new THREE.Mesh(missileGeometry, missileMaterial);
     missile.rotation.x = Math.PI / 2;
@@ -1094,25 +1102,25 @@ function createEnemy(pos, type = 'basic') {
         case 'basic':
             health = 2;
             speed = 0.12;
-            scale = 0.0018;
+            scale = 0.005;
             color = 0xff0000;
             break;
         case 'fast':
             health = 1;
             speed = 0.18;
-            scale = 0.0015;
+            scale = 0.005;
             color = 0xff4444;
             break;
         case 'tank':
             health = 4;
             speed = 0.08;
-            scale = 0.0025;
+            scale = 0.005;
             color = 0x990000;
             break;
         default:
             health = 2;
             speed = 0.12;
-            scale = 0.0018;
+            scale = 0.005;
             color = 0xff0000;
     }
     
@@ -1156,38 +1164,63 @@ function createProceduralEnemy(enemy) {
     addEnemyEffects(enemy);
 }
 
-function addEnemyEffects(enemy) {
+function addEnemyEffects(enemy, color) {
     // Red pulsating light
-    const light = new THREE.PointLight(0xff0000, 3, 30);
-    light.userData.baseIntensity = 3;
+    const light = new THREE.PointLight(0xff0000, 2, 25); // Reduced intensity and range
+    light.userData.baseIntensity = 2;
     enemy.add(light);
-    
-    // Enemy glow effect
-    const glowGeometry = new THREE.SphereGeometry(2, 8, 8);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff0000,
-        transparent: true,
-        opacity: 0.3,
-        blending: THREE.AdditiveBlending
-    });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    enemy.add(glow);
-    enemy.userData.glow = glow;
     
     // Target indicator (shows when enemy is targeting player)
     const targetRingGeometry = new THREE.RingGeometry(2.5, 3, 16);
     const targetRingMaterial = new THREE.MeshBasicMaterial({
         color: 0xff0000,
         transparent: true,
-        opacity: 0,
+        opacity: 0, // Start invisible
         side: THREE.DoubleSide
     });
     const targetRing = new THREE.Mesh(targetRingGeometry, targetRingMaterial);
     targetRing.rotation.x = Math.PI / 2;
     enemy.add(targetRing);
     enemy.userData.targetRing = targetRing;
+    
+    // Initialize patrol properties
+    enemy.userData.lastDirectionChange = Date.now();
+    enemy.userData.patrolDirection = null;
 }
 
+// Proper checkpoint creation function
+function createCheckpoint(pos, index) {
+    const checkpoint = new THREE.Group();
+    
+    // Create rings with proper material assignment - each ring gets its own material
+    const ringGeometry = new THREE.TorusGeometry(4, 0.3, 16, 32);
+
+    const ringMaterial1 = materialManager.getCheckpointMaterial();
+    const ring1 = new THREE.Mesh(ringGeometry, ringMaterial1);
+    checkpoint.add(ring1);
+
+    const ringMaterial2 = materialManager.getCheckpointMaterial();
+    const ring2 = new THREE.Mesh(ringGeometry, ringMaterial2);
+    ring2.rotation.y = Math.PI / 2;
+    checkpoint.add(ring2);
+    
+    // Add light
+    const light = new THREE.PointLight(0x00ff00, 3, 40);
+    checkpoint.add(light);
+    
+    // Set position and user data
+    checkpoint.position.copy(pos);
+    checkpoint.userData = {
+        index: index,
+        reached: false,
+        rings: [ring1, ring2] // Store reference to rings
+    };
+    
+    scene.add(checkpoint);
+    checkpoints.push(checkpoint);
+    
+    return checkpoint;
+}
 function createAsteroid(pos, size, texturePath) {
     const obstacle = new THREE.Mesh();
     obstacle.geometry = new THREE.DodecahedronGeometry(size, 1);
@@ -1230,29 +1263,6 @@ function createAsteroid(pos, size, texturePath) {
     obstacles.push(obstacle);
     
     return obstacle;
-}
-
-function createCheckpoint(pos, index) {
-    const checkpoint = new THREE.Group();
-    
-    const ringGeometry = new THREE.TorusGeometry(4, 0.3, 16, 32);
-    const ringMaterial = materialManager.getCheckpointMaterial();
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    checkpoint.add(ring);
-    
-    const ring2 = ring.clone();
-    ring2.rotation.y = Math.PI / 2;
-    checkpoint.add(ring2);
-    
-    const light = new THREE.PointLight(0x00ff00, 3, 40);
-    checkpoint.add(light);
-    
-    checkpoint.position.copy(pos);
-    checkpoint.userData.index = index;
-    checkpoint.userData.reached = false;
-    
-    scene.add(checkpoint);
-    checkpoints.push(checkpoint);
 }
 
 function createLevel(level) {
@@ -1302,14 +1312,14 @@ function createLevel(level) {
         orbs.push(orb);
     }
     
-    // Create obstacles
     const obstacleCount = 10 + (level * 8);
     for (let i = 0; i < obstacleCount; i++) {
         const size = 2 + Math.random() * (level * 1.5);
         
-        // Optionally specify texture path here, e.g. 'textures/asteroid.png'
+        // Optionally specify texture path here
         // Pass null or undefined to use procedural material
-        const texturePath = 'textures/asteroid.webp'; // Change to 'textures/asteroid.png' to use texture
+        const texturePath = 'textures/asteroid.webp'; // Change to your texture path
+        // const texturePath = null; // Use this for procedural materials only
         
         const obstaclePos = new THREE.Vector3(
             (Math.random() - 0.5) * 170,
@@ -1382,7 +1392,7 @@ window.startGame = function(level) {
         return;
     }
     
-    initAudio();
+    handleUserInteraction(); // Add user interaction for audio
     document.getElementById('menu').classList.add('hidden');
     document.getElementById('gameOver').style.display = 'none';
     const creditsEl = document.getElementById('credits');
@@ -1408,6 +1418,59 @@ window.restartGame = function() {
     window.startGame(gameState.level);
 }
 
+window.nextLevel = function() {
+    if (gameState.level < 3) {
+        window.startGame(gameState.level + 1);
+    } else {
+        alert("Congratulations! You've completed all levels!");
+        backToMenu();
+    }
+}
+
+//Proper endGame function
+function endGame(won) {
+    gameState.playing = false;
+    gameState.paused = false;
+    stopAmbient();
+    const gameOverDiv = document.getElementById('gameOver');
+    const gameOverText = document.getElementById('gameOverText');
+    const gameStats = document.getElementById('gameStats');
+    const nextLevelBtn = document.getElementById('nextLevelBtn');
+    
+    if (won) {
+        gameOverText.innerHTML = `🏆 LEVEL ${gameState.level} COMPLETE! 🏆`;
+        playSound(450, 0.6);
+        setTimeout(() => playSound(550, 0.6), 250);
+        setTimeout(() => playSound(700, 1), 500);
+        
+        // Show Next Level button if not on the last level
+        if (gameState.level < 3) {
+            nextLevelBtn.style.display = 'block';
+        } else {
+            nextLevelBtn.style.display = 'none';
+        }
+    } else {
+        gameOverText.innerHTML = `💥 MISSION FAILED 💥`;
+        createExplosion(ship.position, 0x00ffff);
+        playSound(60, 1.2, 'sawtooth', 0.18);
+        // Hide Next Level button on failure
+        nextLevelBtn.style.display = 'none';
+    }
+    
+    gameStats.innerHTML = `
+        <div style="text-align: left; display: inline-block;">
+        <strong>═══ MISSION REPORT ═══</strong><br>
+        Final Score: <span style="color: #ff0;">${gameState.score}</span><br>
+        Orbs Collected: ${gameState.orbsCollected}/${gameState.orbsTotal}<br>
+        Enemies Destroyed: ${gameState.kills}<br>
+        Checkpoints Reached: ${gameState.checkpointsReached}/${gameState.totalCheckpoints}<br>
+        Max Combo: ${gameState.combo}x
+        </div>
+    `;
+    
+    gameOverDiv.style.display = 'block';
+}
+
 window.backToMenu = function() {
     document.getElementById('menu').classList.remove('hidden');
     document.getElementById('gameOver').style.display = 'none';
@@ -1415,6 +1478,11 @@ window.backToMenu = function() {
     if (pauseEl) pauseEl.classList.add('hidden');
     const creditsEl = document.getElementById('credits');
     if (creditsEl) creditsEl.classList.add('hidden');
+    
+    // Hide the Next Level button when returning to menu
+    const nextLevelBtn = document.getElementById('nextLevelBtn');
+    if (nextLevelBtn) nextLevelBtn.style.display = 'none';
+    
     gameState.playing = false;
     gameState.paused = false;
     stopAmbient();
@@ -1461,7 +1529,7 @@ function updateShip() {
         });
     }
     
-    // FIXED: Full 360° rotation with proper direction
+    // Full 360° rotation with proper direction
     const maxRotation = Math.PI * 2; // Full 360 degrees in radians
     
     // Calculate target rotation based on mouse input
@@ -1486,7 +1554,7 @@ function updateShip() {
     ship.rotation.x += (ship.userData.targetRotation.x - ship.rotation.x) * rotationSpeed;
     ship.rotation.z += (ship.userData.targetRotation.z - ship.rotation.z) * rotationSpeed;
     
-    // FIXED: Movement relative to ship's rotation
+    // Movement relative to ship's rotation
     const forward = new THREE.Vector3(0, 0, -1);
     forward.applyQuaternion(ship.quaternion);
     
@@ -1846,77 +1914,6 @@ function showCheckpointMessage() {
     }, 2000);
 }
 
-window.nextLevel = function() {
-    if (gameState.level < 3) { // Assuming there are 3 levels
-        window.startGame(gameState.level + 1);
-    } else {
-        // If it's the last level, show completion message
-        alert("Congratulations! You've completed all levels!");
-        backToMenu();
-    }
-}
-
-// Modify the endGame function to show the Next Level button when the player wins
-function endGame(won) {
-    gameState.playing = false;
-    gameState.paused = false;
-    stopAmbient();
-    const gameOverDiv = document.getElementById('gameOver');
-    const gameOverText = document.getElementById('gameOverText');
-    const gameStats = document.getElementById('gameStats');
-    const nextLevelBtn = document.getElementById('nextLevelBtn');
-    
-    if (won) {
-        gameOverText.innerHTML = `🏆 LEVEL ${gameState.level} COMPLETE! 🏆`;
-        playSound(450, 0.6);
-        setTimeout(() => playSound(550, 0.6), 250);
-        setTimeout(() => playSound(700, 1), 500);
-        
-        // Show Next Level button if not on the last level
-        if (gameState.level < 3) {
-            nextLevelBtn.style.display = 'block';
-        } else {
-            nextLevelBtn.style.display = 'none';
-        }
-    } else {
-        gameOverText.innerHTML = `💥 MISSION FAILED 💥`;
-        createExplosion(ship.position, 0x00ffff);
-        playSound(60, 1.2, 'sawtooth', 0.18);
-        // Hide Next Level button on failure
-        nextLevelBtn.style.display = 'none';
-    }
-    
-    gameStats.innerHTML = `
-        <div style="text-align: left; display: inline-block;">
-        <strong>═══ MISSION REPORT ═══</strong><br>
-        Final Score: <span style="color: #ff0;">${gameState.score}</span><br>
-        Orbs Collected: ${gameState.orbsCollected}/${gameState.orbsTotal}<br>
-        Enemies Destroyed: ${gameState.kills}<br>
-        Checkpoints Reached: ${gameState.checkpointsReached}/${gameState.totalCheckpoints}<br>
-        Max Combo: ${gameState.combo}x
-        </div>
-    `;
-    
-    gameOverDiv.style.display = 'block';
-}
-
-window.backToMenu = function() {
-    document.getElementById('menu').classList.remove('hidden');
-    document.getElementById('gameOver').style.display = 'none';
-    const pauseEl = document.getElementById('pauseMenu');
-    if (pauseEl) pauseEl.classList.add('hidden');
-    const creditsEl = document.getElementById('credits');
-    if (creditsEl) creditsEl.classList.add('hidden');
-    
-    // Hide the Next Level button when returning to menu
-    const nextLevelBtn = document.getElementById('nextLevelBtn');
-    if (nextLevelBtn) nextLevelBtn.style.display = 'none';
-    
-    gameState.playing = false;
-    gameState.paused = false;
-    stopAmbient();
-}
-
 function updateUI() {
     document.getElementById('level').textContent = gameState.level;
     document.getElementById('score').textContent = gameState.score;
@@ -1959,6 +1956,7 @@ function updateCameraLabel() {
     document.getElementById('cameraMode').textContent = modes[gameState.cameraMode];
 }
 
+// Proper animate function with safe checkpoint handling
 function animate() {
     if (!gameState.playing) return;
     requestAnimationFrame(animate);
@@ -1994,60 +1992,100 @@ function animate() {
         p.position.y += Math.sin(Date.now() * 0.0035 + p.position.x) * 0.035;
     });
     
-    checkpoints.forEach(c => {
-        c.rotation.y += 0.02;
-        if (c.children[0]) c.children[0].rotation.x += 0.01;
-        if (c.userData.reached && c.children[0] && c.children[0].material) {
-            c.children.forEach(child => {
-                if (child.material && child.material.opacity > 0) {
-                    child.material.opacity = Math.max(0, child.material.opacity - 0.01);
-                }
-            });
-        }
-    });
-    
-    // Enhanced enemy behavior
-    enemies.forEach(enemy => {
-        // Smooth rotation
-        enemy.rotation.y += 0.03;
+    // Safe checkpoint animation with comprehensive validation
+    for (let i = checkpoints.length - 1; i >= 0; i--) {
+        const c = checkpoints[i];
         
-        // Calculate direction to player
+        // CRITICAL: Validate checkpoint exists and is properly initialized
+        if (!c || !c.isObject3D || !c.parent || !c.userData) {
+            checkpoints.splice(i, 1);
+            continue;
+        }
+        
+        // Validate rings array exists and is valid
+        if (!c.userData.rings || !Array.isArray(c.userData.rings) || c.userData.rings.length === 0) {
+            scene.remove(c);
+            checkpoints.splice(i, 1);
+            continue;
+        }
+        
+        // Rotate checkpoint
+        c.rotation.y += 0.02;
+        
+        // Animate ring rotations (only if not reached yet)
+        if (!c.userData.reached) {
+            for (let j = 0; j < c.userData.rings.length; j++) {
+                const ring = c.userData.rings[j];
+                if (ring && ring.isObject3D && ring.rotation && ring.parent === c) {
+                    ring.rotation.x += 0.01;
+                }
+            }
+        }
+        
+        // Handle reached checkpoints - fade and remove
+        if (c.userData.reached) {
+            let shouldRemove = true;
+            let hasValidRing = false;
+            
+            for (let j = 0; j < c.userData.rings.length; j++) {
+                const ring = c.userData.rings[j];
+                
+                // Ultra-defensive validation - check EVERYTHING
+                if (!ring || !ring.isObject3D || !ring.parent || ring.parent !== c) {
+                    continue; // Skip invalid ring
+                }
+                
+                if (!ring.material || typeof ring.material.opacity !== 'number') {
+                    continue; // Skip ring with invalid material
+                }
+                
+                hasValidRing = true;
+                
+                // Fade the ring
+                ring.material.opacity = Math.max(0, ring.material.opacity - 0.01);
+                
+                if (ring.material.opacity > 0.01) {
+                    shouldRemove = false;
+                }
+            }
+            
+            // Remove checkpoint if all rings are faded or no valid rings exist
+            if (shouldRemove || !hasValidRing) {
+                scene.remove(c);
+                checkpoints.splice(i, 1);
+            }
+        }
+    }
+    
+    // Enemy behavior
+    enemies.forEach(enemy => {
         const direction = ship.position.clone().sub(enemy.position).normalize();
         const distanceToPlayer = ship.position.distanceTo(enemy.position);
         
-        // Different behaviors based on distance
+        // Always face the player when chasing
+        if (distanceToPlayer < 100) {
+            enemy.lookAt(ship.position);
+        }
+        
+        // Move toward player when in range
         if (distanceToPlayer < 80) {
-            // AGGRESSIVE MODE - Chase player directly
-            const chaseSpeed = enemy.userData.speed * 1.2;
+            const chaseSpeed = enemy.userData.speed;
             enemy.position.add(direction.multiplyScalar(chaseSpeed));
             
             // Show target indicator when close
-            if (distanceToPlayer < 20) {
+            if (distanceToPlayer < 25 && enemy.userData.targetRing && enemy.userData.targetRing.material) {
                 enemy.userData.targetRing.material.opacity = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
-            } else {
+            } else if (enemy.userData.targetRing && enemy.userData.targetRing.material) {
                 enemy.userData.targetRing.material.opacity = 0;
             }
         } else {
-            // PATROL MODE - Move randomly until player is detected
-            if (!enemy.userData.patrolDirection || Math.random() < 0.01) {
-                enemy.userData.patrolDirection = new THREE.Vector3(
-                    (Math.random() - 0.5) * 2,
-                    (Math.random() - 0.5) * 2,
-                    (Math.random() - 0.5) * 2
-                ).normalize();
-            }
-            enemy.position.add(enemy.userData.patrolDirection.multiplyScalar(enemy.userData.speed * 0.5));
-        }
-        
-        // Pulsing glow effect
-        if (enemy.userData.glow) {
-            const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 0.9;
-            enemy.userData.glow.scale.set(pulse, pulse, pulse);
+            // Simple idle movement - just hover in place
+            enemy.position.y += Math.sin(Date.now() * 0.002 + enemy.position.x) * 0.01;
         }
         
         // Pulsing light intensity
         const light = enemy.children.find(child => child.isPointLight);
-        if (light) {
+        if (light && light.userData && typeof light.userData.baseIntensity === 'number') {
             const intensityPulse = Math.sin(Date.now() * 0.008) * 0.5 + 1;
             light.intensity = light.userData.baseIntensity * intensityPulse;
         }
