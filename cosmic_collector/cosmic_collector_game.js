@@ -34,6 +34,9 @@ let music = {
 
 // Enhanced Material Manager with better fallbacks
 const materialManager = {
+    // Texture cache to avoid loading the same texture multiple times
+    textureCache: {},
+    
     createProceduralTexture: function(width, height, color1, color2) {
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -88,6 +91,85 @@ const materialManager = {
             shininess: 20,
             specular: 0x222222
         });
+    },
+    
+    loadAsteroidTexture: function(texturePath, callback, errorCallback) {
+        // Check if texture is already cached
+        if (this.textureCache[texturePath]) {
+            const texture = this.textureCache[texturePath];
+            const material = new THREE.MeshPhongMaterial({
+                map: texture, // Reuse the same texture (Three.js handles this efficiently)
+                flatShading: true,
+                shininess: 20,
+                specular: 0x222222
+            });
+            if (callback) callback(material);
+            return;
+        }
+        
+        const textureLoader = new THREE.TextureLoader();
+        
+        // Try different path formats
+        const pathVariations = [
+            texturePath,
+            './' + texturePath,
+            texturePath.replace(/^textures\//, './textures/')
+        ];
+        
+        let pathIndex = 0;
+        
+        const tryLoadTexture = (currentPath) => {
+            textureLoader.load(
+                currentPath,
+                function(texture) {
+                    // Texture loaded successfully
+                    // Configure texture settings
+                    texture.wrapS = THREE.RepeatWrapping;
+                    texture.wrapT = THREE.RepeatWrapping;
+                    texture.repeat.set(1, 1);
+                    
+                    // Cache the texture
+                    materialManager.textureCache[texturePath] = texture;
+                    
+                    const material = new THREE.MeshPhongMaterial({
+                        map: texture,
+                        flatShading: true,
+                        shininess: 20,
+                        specular: 0x222222
+                    });
+                    
+                    console.log('✓ Asteroid texture loaded:', currentPath);
+                    if (callback) callback(material);
+                },
+                function(xhr) {
+                    // Progress callback
+                    if (xhr.lengthComputable) {
+                        const percentComplete = xhr.loaded / xhr.total * 100;
+                        console.log('Loading asteroid texture: ' + Math.round(percentComplete) + '%');
+                    }
+                },
+                function(error) {
+                    // Try next path variation
+                    pathIndex++;
+                    if (pathIndex < pathVariations.length) {
+                        console.log('Trying alternative path:', pathVariations[pathIndex]);
+                        tryLoadTexture(pathVariations[pathIndex]);
+                    } else {
+                        // All paths failed, use fallback material
+                        console.error('Asteroid texture loading failed for all paths:', pathVariations);
+                        console.error('Error details:', error);
+                        const fallbackMaterial = this.getAsteroidMaterial();
+                        if (errorCallback) {
+                            errorCallback(fallbackMaterial);
+                        } else if (callback) {
+                            callback(fallbackMaterial);
+                        }
+                    }
+                }.bind(this)
+            );
+        };
+        
+        tryLoadTexture(pathVariations[0]);
     },
     
     getEnemyMaterial: function() {
@@ -980,7 +1062,7 @@ function fireProjectile() {
     const projectile = new THREE.Group();
     
     // Create procedural missile (more reliable)
-    const missileGeometry = new THREE.CylinderGeometry(0.1, 0.05, 0.8, 8);
+    const missileGeometry = new THREE.CylinderGeometry(0.5, 0.3, 1, 8);
     const missileMaterial = materialManager.getMissileMaterial();
     const missile = new THREE.Mesh(missileGeometry, missileMaterial);
     missile.rotation.x = Math.PI / 2;
@@ -1106,6 +1188,50 @@ function addEnemyEffects(enemy) {
     enemy.userData.targetRing = targetRing;
 }
 
+function createAsteroid(pos, size, texturePath) {
+    const obstacle = new THREE.Mesh();
+    obstacle.geometry = new THREE.DodecahedronGeometry(size, 1);
+    
+    // Start with fallback material (always set immediately)
+    obstacle.material = materialManager.getAsteroidMaterial();
+    
+    // Try to load texture, will replace material when loaded
+    if (texturePath) {
+        materialManager.loadAsteroidTexture(
+            texturePath,
+            function(material) {
+                obstacle.material = material;
+            },
+            function(fallbackMaterial) {
+                // Material already set to fallback, but update if needed
+                obstacle.material = fallbackMaterial;
+            }
+        );
+    }
+    
+    obstacle.position.copy(pos);
+    obstacle.rotation.set(
+        Math.random() * Math.PI,
+        Math.random() * Math.PI,
+        Math.random() * Math.PI
+    );
+    
+    obstacle.castShadow = true;
+    obstacle.receiveShadow = true;
+    obstacle.userData.rotationSpeed = {
+        x: (Math.random() - 0.5) * 0.02,
+        y: (Math.random() - 0.5) * 0.02,
+        z: (Math.random() - 0.5) * 0.02
+    };
+    obstacle.userData.size = size;
+    obstacle.userData.health = 2;
+    
+    scene.add(obstacle);
+    obstacles.push(obstacle);
+    
+    return obstacle;
+}
+
 function createCheckpoint(pos, index) {
     const checkpoint = new THREE.Group();
     
@@ -1180,34 +1306,18 @@ function createLevel(level) {
     const obstacleCount = 10 + (level * 8);
     for (let i = 0; i < obstacleCount; i++) {
         const size = 2 + Math.random() * (level * 1.5);
-        const geometry = new THREE.DodecahedronGeometry(size, 1);
-        const material = materialManager.getAsteroidMaterial();
-        const obstacle = new THREE.Mesh(geometry, material);
         
-        obstacle.position.set(
+        // Optionally specify texture path here, e.g. 'textures/asteroid.png'
+        // Pass null or undefined to use procedural material
+        const texturePath = 'textures/asteroid.webp'; // Change to 'textures/asteroid.png' to use texture
+        
+        const obstaclePos = new THREE.Vector3(
             (Math.random() - 0.5) * 170,
             (Math.random() - 0.5) * 45,
             (Math.random() - 0.5) * 170
         );
         
-        obstacle.rotation.set(
-            Math.random() * Math.PI,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI
-        );
-        
-        obstacle.castShadow = true;
-        obstacle.receiveShadow = true;
-        obstacle.userData.rotationSpeed = {
-            x: (Math.random() - 0.5) * 0.02,
-            y: (Math.random() - 0.5) * 0.02,
-            z: (Math.random() - 0.5) * 0.02
-        };
-        obstacle.userData.size = size;
-        obstacle.userData.health = 2;
-        
-        scene.add(obstacle);
-        obstacles.push(obstacle);
+        createAsteroid(obstaclePos, size, texturePath);
     }
     
     // Create powerups
